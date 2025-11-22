@@ -45,6 +45,23 @@
 "settings.loadError" = "Failed to load settings";
 "settings.saveError" = "Failed to save settings";
 
+/* Preferences */
+"preferences.title" = "Preferences";
+"preferences.section.network" = "Network Settings";
+"preferences.section.charles" = "Charles Proxy";
+"preferences.section.advanced" = "Advanced Settings";
+"preferences.socks5Port" = "SOCKS5 Port";
+"preferences.portRange" = "Port range: 1-65535";
+"preferences.bonjourServiceName" = "Bonjour Service Name";
+"preferences.charlesProxyHost" = "Charles Proxy Host";
+"preferences.charlesProxyPort" = "Charles Proxy Port";
+"preferences.charlesSSLProxyPort" = "Charles SSL Proxy Port";
+"preferences.maxRetries" = "Max Retries";
+"preferences.connectionTimeout" = "Connection Timeout";
+"preferences.resetDefaults" = "Reset to Defaults";
+"preferences.cancel" = "Cancel";
+"preferences.save" = "Save";
+
 /* Connection Status */
 "connection.status.active" = "Active";
 "connection.status.disconnected" = "Disconnected";

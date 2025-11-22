@@ -45,6 +45,23 @@
 "settings.loadError" = "加载设置失败";
 "settings.saveError" = "保存设置失败";
 
+/* Preferences */
+"preferences.title" = "偏好设置";
+"preferences.section.network" = "网络设置";
+"preferences.section.charles" = "Charles 代理";
+"preferences.section.advanced" = "高级设置";
+"preferences.socks5Port" = "SOCKS5 端口";
+"preferences.portRange" = "端口范围：1-65535";
+"preferences.bonjourServiceName" = "Bonjour 服务名称";
+"preferences.charlesProxyHost" = "Charles 代理主机";
+"preferences.charlesProxyPort" = "Charles 代理端口";
+"preferences.charlesSSLProxyPort" = "Charles SSL 代理端口";
+"preferences.maxRetries" = "最大重试次数";
+"preferences.connectionTimeout" = "连接超时";
+"preferences.resetDefaults" = "重置为默认值";
+"preferences.cancel" = "取消";
+"preferences.save" = "保存";
+
 /* Connection Status */
 "connection.status.active" = "活跃";
 "connection.status.disconnected" = "已断开";

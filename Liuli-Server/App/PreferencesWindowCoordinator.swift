@@ -3,12 +3,17 @@ import SwiftUI
 
 /// Preferences window coordinator
 @MainActor
-public final class PreferencesWindowCoordinator {
+public final class PreferencesWindowCoordinator: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let viewModel: PreferencesViewModel
 
+    public override init() {
+        fatalError("Use init(viewModel:) instead")
+    }
+
     public init(viewModel: PreferencesViewModel) {
         self.viewModel = viewModel
+        super.init()
     }
 
     public func show() {
@@ -19,7 +24,7 @@ public final class PreferencesWindowCoordinator {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 450),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 550),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -27,6 +32,7 @@ public final class PreferencesWindowCoordinator {
 
         window.title = "preferences.title".localized()
         window.center()
+        window.delegate = self
         window.contentView = NSHostingView(
             rootView: PreferencesView(viewModel: viewModel)
         )
@@ -39,6 +45,12 @@ public final class PreferencesWindowCoordinator {
 
     public func close() {
         window?.close()
+        window = nil
+    }
+
+    // MARK: - NSWindowDelegate
+
+    public func windowWillClose(_ notification: Notification) {
         window = nil
     }
 }

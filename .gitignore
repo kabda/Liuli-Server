@@ -1,2 +1,54 @@
-/DerivedData
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Swift build artifacts
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# Environment and secrets
+.env
+.env.*
+*.secret
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Code coverage
+*.profdata
+*.profraw
+.coverage/
+coverage/
+
+# Xcode user-specific settings
+/Liuli-Server.xcodeproj/project.xcworkspace/xcuserdata/fanyuandong.xcuserdatad

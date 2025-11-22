@@ -25,9 +25,19 @@ public struct DashboardView: View {
             .navigationTitle("Liuli Server")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
-                    Button("Refresh") {
-                        // Refresh action
+                    Button {
+                        Task {
+                            await viewModel.refresh()
+                        }
+                    } label: {
+                        if viewModel.state.isRefreshing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
+                    .disabled(viewModel.state.isRefreshing)
                 }
             }
         }

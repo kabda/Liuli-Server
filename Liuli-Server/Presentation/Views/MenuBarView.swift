@@ -34,7 +34,11 @@ public struct MenuBarView: View {
             // Bridge toggle
             Toggle("Enable Bridge", isOn: Binding(
                 get: { viewModel.state.isBridgeEnabled },
-                set: { _ in viewModel.send(.toggleBridge) }
+                set: { newValue in
+                    if newValue != viewModel.state.isBridgeEnabled {
+                        viewModel.send(.toggleBridge)
+                    }
+                }
             ))
             .padding(.horizontal, 12)
 

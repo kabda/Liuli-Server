@@ -15,6 +15,9 @@ public struct DashboardState: Sendable, Equatable {
     /// Loading indicator (during initial data fetch)
     public var isLoading: Bool
 
+    /// Refreshing indicator (during manual refresh)
+    public var isRefreshing: Bool
+
     /// Selected device ID (for detail view, future feature)
     public var selectedDeviceId: UUID?
 
@@ -27,12 +30,14 @@ public struct DashboardState: Sendable, Equatable {
             proxyPort: 8888
         ),
         isLoading: Bool = false,
+        isRefreshing: Bool = false,
         selectedDeviceId: UUID? = nil
     ) {
         self.devices = devices
         self.networkStatus = networkStatus
         self.charlesStatus = charlesStatus
         self.isLoading = isLoading
+        self.isRefreshing = isRefreshing
         self.selectedDeviceId = selectedDeviceId
     }
 }
@@ -88,5 +93,21 @@ public final class DashboardViewModel {
         devicesTask?.cancel()
         networkTask?.cancel()
         charlesTask?.cancel()
+    }
+
+    /// Manually refresh all monitoring data
+    public func refresh() async {
+        state.isRefreshing = true
+
+        // Cancel existing tasks
+        stopMonitoring()
+
+        // Add a small delay to make the animation visible
+        try? await Task.sleep(for: .milliseconds(500))
+
+        // Restart monitoring
+        startMonitoring()
+
+        state.isRefreshing = false
     }
 }

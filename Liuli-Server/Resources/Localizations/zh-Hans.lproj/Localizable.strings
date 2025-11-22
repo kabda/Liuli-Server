@@ -1,97 +1,63 @@
-/*
-  Localizable.strings (Simplified Chinese)
-  Liuli-Server
+/* Dashboard */
+"dashboard.title" = "Liuli 服务器";
+"dashboard.refresh" = "刷新";
+"dashboard.noDevices" = "无设备连接";
 
-  Mac Bridge 应用的中文界面文案
-*/
+/* Status Panel */
+"status.bridge" = "网络桥接";
+"status.bridge.active" = "活跃";
+"status.bridge.inactive" = "未激活";
+"status.bridge.notListening" = "未监听";
+"status.bridge.port" = "端口 %d";
+"status.charles" = "Charles 代理";
+"status.charles.unknown" = "未知";
+"status.charles.available" = "可用";
+"status.charles.unavailable" = "不可用";
 
-// MARK: - Service Status
-"service.status.stopped" = "服务已停止";
-"service.status.starting" = "正在启动...";
-"service.status.running" = "服务运行中";
-"service.status.stopping" = "正在停止...";
-"service.status.error" = "服务错误";
+/* Menu Bar */
+"menuBar.title" = "Liuli 服务器";
+"menuBar.enableBridge" = "启用桥接";
+"menuBar.devicesConnected" = "已连接 %d 台设备";
+"menuBar.bridgeDisabled" = "桥接已禁用";
+"menuBar.showMainWindow" = "显示主窗口";
+"menuBar.settings" = "设置...";
+"menuBar.quit" = "退出";
 
-// MARK: - Menu Actions
-"menu.startService" = "启动服务";
-"menu.stopService" = "停止服务";
-"menu.openCharles" = "打开 Charles";
-"menu.viewStatistics" = "查看统计";
-"menu.preferences" = "偏好设置";
-"menu.quit" = "退出";
+/* Device List */
+"deviceList.name" = "设备名称";
+"deviceList.connectedAt" = "连接时间";
+"deviceList.status" = "状态";
+"deviceList.traffic" = "流量";
+"deviceList.emptyState" = "无设备连接。启用桥接以接受连接。";
 
-// MARK: - Notifications
-"notification.serviceStarted" = "服务运行中";
-"notification.serviceStartedBody" = "SOCKS5 代理服务现已开始接受连接";
-"notification.serviceStopped" = "服务已停止";
-"notification.serviceStoppedBody" = "SOCKS5 代理服务已停止";
-"notification.charlesNotDetected" = "未检测到 Charles";
-"notification.charlesNotDetectedBody" = "Charles Proxy 未运行。请启动 Charles 以抓取流量。";
-"notification.deviceConnected" = "iOS 设备已连接";
-"notification.deviceConnectedBody" = "%@ 已连接到代理";
-"notification.charlesUnreachable" = "无法连接到 Charles";
+/* Settings */
+"settings.title" = "设置";
+"settings.charlesProxy" = "Charles 代理";
+"settings.charlesHost" = "主机:";
+"settings.charlesPort" = "端口:";
+"settings.behavior" = "行为";
+"settings.autoStartBridge" = "启动时自动开启桥接";
+"settings.showMenuBarIcon" = "显示菜单栏图标";
+"settings.showMainWindowOnLaunch" = "启动时显示主窗口";
+"settings.save" = "保存";
+"settings.cancel" = "取消";
+"settings.portError" = "端口必须在 1 到 65535 之间";
+"settings.loadError" = "加载设置失败";
+"settings.saveError" = "保存设置失败";
 
-// MARK: - Errors
+/* Connection Status */
+"connection.status.active" = "活跃";
+"connection.status.disconnected" = "已断开";
+
+/* Errors */
+"error.unknown" = "发生未知错误";
+"error.bridgeStart" = "启动桥接失败";
+"error.bridgeStop" = "停止桥接失败";
+"error.charlesNotFound" = "未找到 Charles 代理";
 "error.portInUse" = "端口已被占用";
-"error.portInUse.message" = "配置的端口 %d 已被其他应用占用。请在偏好设置中更改端口。";
-"error.charlesNotFound" = "未找到 Charles";
-"error.charlesNotFound.message" = "此 Mac 上未安装 Charles Proxy。请从 www.charlesproxy.com 安装 Charles。";
-"error.networkInterfaceUnavailable" = "网络接口不可用";
-"error.bonjourFailed" = "Bonjour 注册失败";
-"error.serviceStartFailed" = "启动服务失败";
-"error.dismiss" = "忽略";
 
-// MARK: - Error Recovery Actions
-"error.action.retry" = "重试";
-"error.action.restartService" = "重启服务";
-"error.action.checkCharles" = "检查 Charles Proxy";
-"error.action.openPreferences" = "打开偏好设置";
-"error.action.viewLogs" = "查看日志";
-"error.action.contactSupport" = "联系支持";
-
-// MARK: - Actions
-"action.changePort" = "更改端口";
-"action.launchCharles" = "启动 Charles";
-"action.restartService" = "重启服务";
-"action.cancel" = "取消";
-"action.ok" = "确定";
-
-// MARK: - Statistics Window
-"statistics.title" = "连接统计";
-"statistics.totalConnections" = "总连接数";
-"statistics.activeConnections" = "活动连接数";
-"statistics.totalBytes" = "总传输字节";
-"statistics.uptime" = "运行时长";
-"statistics.connectedAt" = "连接于 %@";
-"statistics.bytesSent" = "发送: %@";
-"statistics.connectedDevices" = "已连接设备";
-"statistics.bytesTransferred" = "传输字节数";
-"statistics.currentThroughput" = "当前吞吐量";
-"statistics.connectionDuration" = "连接时长";
-"statistics.noDevices" = "无设备连接";
-
-// MARK: - Preferences
-"preferences.title" = "偏好设置";
-"preferences.general" = "通用";
-"preferences.network" = "网络";
-"preferences.advanced" = "高级";
-"preferences.section.network" = "网络配置";
-"preferences.section.charles" = "Charles Proxy";
-"preferences.section.advanced" = "高级设置";
-"preferences.socks5Port" = "SOCKS5 端口";
-"preferences.portRange" = "(1024-65535)";
-"preferences.bonjourServiceName" = "Bonjour 服务名称";
-"preferences.charlesProxyHost" = "Charles 主机";
-"preferences.charlesProxyPort" = "Charles HTTP 端口";
-"preferences.charlesSSLProxyPort" = "Charles HTTPS 端口";
-"preferences.maxRetries" = "最大重试次数";
-"preferences.connectionTimeout" = "连接超时";
-"preferences.charlesAddress" = "Charles 代理地址";
-"preferences.autoStartOnLogin" = "登录时启动";
-"preferences.autoLaunchCharles" = "自动启动 Charles";
-"preferences.notifications" = "显示通知";
-"preferences.save" = "保存";
-"preferences.cancel" = "取消";
-"preferences.resetDefaults" = "恢复默认";
-"preferences.savedSuccessfully" = "偏好设置已保存";
-
+/* General */
+"general.ok" = "确定";
+"general.cancel" = "取消";
+"general.save" = "保存";
+"general.close" = "关闭";

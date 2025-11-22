@@ -22,7 +22,7 @@ public final class MenuBarCoordinator {
             button.target = self
 
             // Set initial icon based on state
-            updateIcon(for: viewModel.state.serviceState)
+            updateIcon(isEnabled: viewModel.state.isBridgeEnabled)
         }
 
         self.statusItem = statusItem
@@ -52,23 +52,15 @@ public final class MenuBarCoordinator {
     }
 
     private func observeStateChanges() {
-        // TODO: Observe viewModel.state changes and update icon
+        // TODO: Phase 7 - Observe viewModel.state changes and update icon
         // For now, this is a placeholder
     }
 
-    private func updateIcon(for state: ServiceState) {
+    private func updateIcon(isEnabled: Bool) {
         guard let button = statusItem?.button else { return }
 
-        // TODO: Load actual icon assets from Resources/Assets.xcassets
-        // For now, use text-based indicator (FR-025: gray/blue/green/yellow/red)
-        let iconMap: [ServiceState: String] = [
-            .idle: "⚪️",      // gray
-            .starting: "🔵",   // blue
-            .running: "🟢",    // green
-            .stopping: "🔵",   // blue
-            .error: "🔴"       // red
-        ]
-
-        button.title = iconMap[state] ?? "⚪️"
+        // TODO: Phase 7 - Use SF Symbols or custom assets
+        // For now, use simple emoji indicators
+        button.title = isEnabled ? "🟢" : "⚪️"
     }
 }

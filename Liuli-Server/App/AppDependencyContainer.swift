@@ -25,6 +25,24 @@ public final class AppDependencyContainer {
         InMemoryConnectionRepository()
     }()
 
+    // MARK: - Feature 002 Repositories
+
+    public lazy var deviceMonitorRepository: DeviceMonitorRepository = {
+        DeviceMonitorRepositoryImpl()
+    }()
+
+    public lazy var networkStatusRepository: NetworkStatusRepository = {
+        NetworkStatusRepositoryImpl()
+    }()
+
+    public lazy var charlesProxyMonitorRepository: CharlesProxyMonitorRepository = {
+        CharlesProxyMonitorRepositoryImpl()
+    }()
+
+    public lazy var settingsRepository: SettingsRepository = {
+        SettingsRepositoryImpl()
+    }()
+
     // MARK: - Use Cases
 
     public lazy var startServiceUseCase: StartServiceUseCase = {
@@ -59,13 +77,37 @@ public final class AppDependencyContainer {
         ForwardConnectionUseCase(connectionRepository: connectionRepository)
     }()
 
+    // MARK: - Feature 002 Use Cases
+
+    public lazy var monitorDeviceConnectionsUseCase: MonitorDeviceConnectionsUseCase = {
+        MonitorDeviceConnectionsUseCase(repository: deviceMonitorRepository)
+    }()
+
+    public lazy var monitorNetworkStatusUseCase: MonitorNetworkStatusUseCase = {
+        MonitorNetworkStatusUseCase(repository: networkStatusRepository)
+    }()
+
+    public lazy var checkCharlesAvailabilityUseCase: CheckCharlesAvailabilityUseCase = {
+        CheckCharlesAvailabilityUseCase(repository: charlesProxyMonitorRepository)
+    }()
+
+    public lazy var toggleBridgeUseCase: ToggleBridgeUseCase = {
+        ToggleBridgeUseCase(
+            networkRepository: networkStatusRepository,
+            settingsRepository: settingsRepository
+        )
+    }()
+
+    public lazy var manageSettingsUseCase: ManageSettingsUseCase = {
+        ManageSettingsUseCase(repository: settingsRepository)
+    }()
+
     // MARK: - View Models
 
     public func makeMenuBarViewModel() -> MenuBarViewModel {
         MenuBarViewModel(
-            startServiceUseCase: startServiceUseCase,
-            stopServiceUseCase: stopServiceUseCase,
-            detectCharlesUseCase: detectCharlesUseCase
+            toggleBridgeUseCase: toggleBridgeUseCase,
+            monitorNetworkUseCase: monitorNetworkStatusUseCase
         )
     }
 
@@ -81,7 +123,23 @@ public final class AppDependencyContainer {
         )
     }
 
+    // MARK: - Feature 002 ViewModels
+
+    public func makeDashboardViewModel() -> DashboardViewModel {
+        DashboardViewModel(
+            monitorDevicesUseCase: monitorDeviceConnectionsUseCase,
+            monitorNetworkUseCase: monitorNetworkStatusUseCase,
+            checkCharlesUseCase: checkCharlesAvailabilityUseCase
+        )
+    }
+
     // MARK: - Window Coordinators
+
+    public func makeDashboardWindowCoordinator() -> DashboardWindowCoordinator {
+        DashboardWindowCoordinator(
+            viewModel: makeDashboardViewModel()
+        )
+    }
 
     public func makeStatisticsWindowCoordinator() -> StatisticsWindowCoordinator {
         StatisticsWindowCoordinator(

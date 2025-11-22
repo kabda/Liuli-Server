@@ -7,7 +7,7 @@ public actor InMemoryConnectionRepository: ConnectionRepository {
     private var statisticsContinuation: AsyncStream<ConnectionStatistics>.Continuation?
 
     public init() {
-        self.statistics = ConnectionStatistics()
+        self.statistics = ConnectionStatistics(sessionStartTime: Date())
     }
 
     public func trackConnection(_ connection: SOCKS5Connection) async {
@@ -36,7 +36,7 @@ public actor InMemoryConnectionRepository: ConnectionRepository {
         guard let connection = activeConnections.removeValue(forKey: id) else { return }
 
         // Add to historical connections
-        var closedConnection = connection.with(state: .closed)
+        let closedConnection = connection.with(state: .closed)
         statistics = statistics.addingConnection(closedConnection)
 
         updateStatistics()
@@ -51,18 +51,22 @@ public actor InMemoryConnectionRepository: ConnectionRepository {
         statistics
     }
 
-    public func observeStatistics() -> AsyncStream<ConnectionStatistics> {
+    public nonisolated func observeStatistics() -> AsyncStream<ConnectionStatistics> {
         AsyncStream { continuation in
-            self.statisticsContinuation = continuation
-
-            // Send current state immediately
-            continuation.yield(self.statistics)
+            Task {
+                await self.setStatisticsContinuation(continuation)
+                continuation.yield(await self.statistics)
+            }
         }
+    }
+
+    private func setStatisticsContinuation(_ continuation: AsyncStream<ConnectionStatistics>.Continuation) {
+        self.statisticsContinuation = continuation
     }
 
     private func updateStatistics() {
         let activeCount = activeConnections.count
-        let totalBytes = activeConnections.values.reduce(0) { $0 + $1.totalBytes }
+        _ = activeConnections.values.reduce(0) { $0 + $1.totalBytes }
 
         statistics = ConnectionStatistics(
             totalConnectionCount: statistics.totalConnectionCount,

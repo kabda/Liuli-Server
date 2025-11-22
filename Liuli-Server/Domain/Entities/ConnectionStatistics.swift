@@ -23,14 +23,14 @@ public struct ConnectionStatistics: Sendable, Equatable {
     /// Session start time (reset on app launch)
     public let sessionStartTime: Date
 
-    public init(
+    public nonisolated init(
         totalConnectionCount: Int = 0,
         activeConnectionCount: Int = 0,
         totalBytesUploaded: UInt64 = 0,
         totalBytesDownloaded: UInt64 = 0,
         currentThroughput: UInt64 = 0,
         historicalConnections: [SOCKS5Connection] = [],
-        sessionStartTime: Date = Date()
+        sessionStartTime: Date
     ) {
         self.totalConnectionCount = totalConnectionCount
         self.activeConnectionCount = activeConnectionCount
@@ -42,17 +42,17 @@ public struct ConnectionStatistics: Sendable, Equatable {
     }
 
     /// Total bytes transferred (uploaded + downloaded)
-    public var totalBytesTransferred: UInt64 {
+    public nonisolated var totalBytesTransferred: UInt64 {
         totalBytesUploaded + totalBytesDownloaded
     }
 
     /// Session duration
-    public var sessionDuration: TimeInterval {
+    public nonisolated var sessionDuration: TimeInterval {
         Date().timeIntervalSince(sessionStartTime)
     }
 
     /// Add a new connection to statistics
-    public func addingConnection(_ connection: SOCKS5Connection) -> ConnectionStatistics {
+    public nonisolated func addingConnection(_ connection: SOCKS5Connection) -> ConnectionStatistics {
         var updatedHistory = historicalConnections
         if connection.state == .closed {
             updatedHistory.append(connection)

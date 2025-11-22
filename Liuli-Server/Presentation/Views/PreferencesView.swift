@@ -51,7 +51,7 @@ public struct PreferencesView: View {
                         Text("preferences.charlesProxyHost".localized())
                             .frame(width: 150, alignment: .trailing)
 
-                        TextField("", text: $viewModel.state.configuration.charlesProxyHost)
+                        TextField("", text: $viewModel.state.configuration.charlesHost)
                             .textFieldStyle(.roundedBorder)
                     }
 
@@ -59,7 +59,7 @@ public struct PreferencesView: View {
                         Text("preferences.charlesProxyPort".localized())
                             .frame(width: 150, alignment: .trailing)
 
-                        TextField("", value: $viewModel.state.configuration.charlesProxyPort, format: .number)
+                        TextField("", value: $viewModel.state.configuration.charlesPort, format: .number)
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 100)
                     }

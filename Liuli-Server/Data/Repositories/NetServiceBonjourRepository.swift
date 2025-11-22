@@ -61,7 +61,7 @@ public actor NetServiceBonjourRepository: NSObject, BonjourServiceRepository, Ne
 
     nonisolated public func netServiceDidPublish(_ sender: NetService) {
         Task {
-            await Logger.bonjour.info("Bonjour service published successfully")
+            Logger.bonjour.info("Bonjour service published successfully")
         }
     }
 
@@ -70,7 +70,7 @@ public actor NetServiceBonjourRepository: NSObject, BonjourServiceRepository, Ne
         didNotPublish errorDict: [String: NSNumber]
     ) {
         Task {
-            await Logger.bonjour.error("Bonjour publish failed: \(errorDict)")
+            Logger.bonjour.error("Bonjour publish failed: \(errorDict)")
         }
     }
 }

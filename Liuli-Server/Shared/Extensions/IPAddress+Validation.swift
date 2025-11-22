@@ -26,7 +26,7 @@ extension IPv4Address {
     /// - 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
     /// - 192.168.0.0/16 (192.168.0.0 - 192.168.255.255)
     public func isRFC1918() -> Bool {
-        let bytes = withUnsafeBytes(of: rawValue.bigEndian) { Array($0) }
+        let bytes = withUnsafeBytes(of: self.rawValue) { Array($0) }
         guard bytes.count >= 2 else { return false }
 
         let octet1 = bytes[0]
@@ -52,7 +52,7 @@ extension IPv4Address {
 
     /// Check if IPv4 address is link-local (169.254.0.0/16)
     public func isLinkLocal() -> Bool {
-        let bytes = withUnsafeBytes(of: rawValue.bigEndian) { Array($0) }
+        let bytes = withUnsafeBytes(of: self.rawValue) { Array($0) }
         guard bytes.count >= 2 else { return false }
 
         let octet1 = bytes[0]

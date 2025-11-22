@@ -43,9 +43,15 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
         isServerRunning
     }
 
-    public func observeConnections() -> AsyncStream<SOCKS5Connection> {
+    public nonisolated func observeConnections() -> AsyncStream<SOCKS5Connection> {
         AsyncStream { continuation in
-            self.connectionsContinuation = continuation
+            Task {
+                await self.setConnectionsContinuation(continuation)
+            }
         }
+    }
+
+    private func setConnectionsContinuation(_ continuation: AsyncStream<SOCKS5Connection>.Continuation) {
+        self.connectionsContinuation = continuation
     }
 }

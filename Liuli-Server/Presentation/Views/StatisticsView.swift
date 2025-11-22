@@ -61,7 +61,7 @@ struct OverviewSection: View {
 
             StatisticCard(
                 title: "statistics.uptime".localized(),
-                value: formatUptime(state.statistics.uptimeSeconds)
+                value: formatUptime(state.statistics.sessionDuration)
             )
         }
         .padding()
@@ -116,7 +116,7 @@ struct ConnectionRow: View {
                 Text(connection.sourceIP)
                     .font(.system(.body, design: .monospaced))
 
-                Text("statistics.connectedAt".localized(args: formatTime(connection.startTime)))
+                Text("statistics.connectedAt".localized(with: formatTime(connection.startTime)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -131,7 +131,7 @@ struct ConnectionRow: View {
                 Text("\(connection.destinationHost):\(connection.destinationPort)")
                     .font(.system(.body, design: .monospaced))
 
-                Text("statistics.bytesSent".localized(args: formatBytes(connection.bytesUploaded)))
+                Text("statistics.bytesSent".localized(with: formatBytes(connection.bytesUploaded)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

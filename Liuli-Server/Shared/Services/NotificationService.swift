@@ -79,7 +79,7 @@ public final class NotificationService {
         do {
             try await show(
                 title: "notification.deviceConnected".localized(),
-                body: "notification.deviceConnectedBody".localized(args: deviceName),
+                body: "notification.deviceConnectedBody".localized(with: deviceName),
                 identifier: "device.connected.\(deviceName)"
             )
         } catch {

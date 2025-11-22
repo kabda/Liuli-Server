@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AppKit
 
 /// Menu bar view model (FR-024 to FR-030)
 @MainActor

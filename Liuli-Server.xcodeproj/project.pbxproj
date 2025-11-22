@@ -36,9 +36,22 @@
 		903511302ECF6AAF00882C28 /* Liuli-ServerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Liuli-ServerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		907A84162ED1A96400B7EDF0 /* Exceptions for "Liuli-Server" folder in "Liuli-Server" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 903511162ECF6AAE00882C28 /* Liuli-Server */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		903511192ECF6AAE00882C28 /* Liuli-Server */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				907A84162ED1A96400B7EDF0 /* Exceptions for "Liuli-Server" folder in "Liuli-Server" target */,
+			);
 			path = "Liuli-Server";
 			sourceTree = "<group>";
 		};
@@ -423,7 +436,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Liuli-Server/Resources/Info.plist";
+				INFOPLIST_FILE = "Liuli-Server/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -459,7 +472,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Liuli-Server/Resources/Info.plist";
+				INFOPLIST_FILE = "Liuli-Server/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

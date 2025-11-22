@@ -5,7 +5,7 @@ import Observation
 @MainActor
 @Observable
 public final class PreferencesViewModel {
-    private(set) var state: PreferencesViewState
+    public var state: PreferencesViewState
 
     private let manageConfigurationUseCase: ManageConfigurationUseCase
     private var originalConfiguration: ProxyConfiguration?
@@ -40,7 +40,7 @@ public final class PreferencesViewModel {
         } catch {
             Logger.ui.error("Failed to load configuration: \(error.localizedDescription)")
             state = PreferencesViewState(
-                configuration: ProxyConfiguration.defaultConfiguration,
+                configuration: ProxyConfiguration.default,
                 validationError: error.localizedDescription
             )
         }
@@ -82,7 +82,7 @@ public final class PreferencesViewModel {
 
     private func resetToDefaults() {
         state = PreferencesViewState(
-            configuration: ProxyConfiguration.defaultConfiguration
+            configuration: ProxyConfiguration.default
         )
     }
 

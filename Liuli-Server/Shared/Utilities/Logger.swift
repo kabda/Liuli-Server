@@ -3,40 +3,17 @@ import OSLog
 /// OSLog subsystem and category constants for structured logging
 enum Logger {
     /// Subsystem identifier for all Liuli-Server logs
-    static let subsystem = "com.liuli.server"
+    nonisolated static let subsystem = "com.liuli.server"
 
     /// Pre-configured OSLog loggers for each category
-    nonisolated(unsafe) static let service: OSLog = {
-        OSLog(subsystem: subsystem, category: "service")
-    }()
-
-    nonisolated(unsafe) static let socks5: OSLog = {
-        OSLog(subsystem: subsystem, category: "socks5")
-    }()
-
-    nonisolated(unsafe) static let bonjour: OSLog = {
-        OSLog(subsystem: subsystem, category: "bonjour")
-    }()
-
-    nonisolated(unsafe) static let charles: OSLog = {
-        OSLog(subsystem: subsystem, category: "charles")
-    }()
-
-    nonisolated(unsafe) static let connections: OSLog = {
-        OSLog(subsystem: subsystem, category: "connections")
-    }()
-
-    nonisolated(unsafe) static let configuration: OSLog = {
-        OSLog(subsystem: subsystem, category: "configuration")
-    }()
-
-    nonisolated(unsafe) static let ui: OSLog = {
-        OSLog(subsystem: subsystem, category: "ui")
-    }()
-
-    nonisolated(unsafe) static let network: OSLog = {
-        OSLog(subsystem: subsystem, category: "network")
-    }()
+    nonisolated static let service = OSLog(subsystem: subsystem, category: "service")
+    nonisolated static let socks5 = OSLog(subsystem: subsystem, category: "socks5")
+    nonisolated static let bonjour = OSLog(subsystem: subsystem, category: "bonjour")
+    nonisolated static let charles = OSLog(subsystem: subsystem, category: "charles")
+    nonisolated static let connections = OSLog(subsystem: subsystem, category: "connections")
+    nonisolated static let configuration = OSLog(subsystem: subsystem, category: "configuration")
+    nonisolated static let ui = OSLog(subsystem: subsystem, category: "ui")
+    nonisolated static let network = OSLog(subsystem: subsystem, category: "network")
 }
 
 /// Convenience extension for logging with proper log levels

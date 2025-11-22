@@ -11,13 +11,13 @@ public struct SOCKS5Connection: Sendable, Equatable, Identifiable {
     public let bytesUploaded: UInt64
     public let bytesDownloaded: UInt64
 
-    public init(
+    public nonisolated init(
         id: UUID = UUID(),
         sourceIP: String,
         destinationHost: String,
         destinationPort: UInt16,
         state: ConnectionState = .connecting,
-        startTime: Date = Date(),
+        startTime: Date,
         bytesUploaded: UInt64 = 0,
         bytesDownloaded: UInt64 = 0
     ) {
@@ -32,17 +32,17 @@ public struct SOCKS5Connection: Sendable, Equatable, Identifiable {
     }
 
     /// Connection duration in seconds
-    public var duration: TimeInterval {
+    public nonisolated var duration: TimeInterval {
         Date().timeIntervalSince(startTime)
     }
 
     /// Total bytes transferred
-    public var totalBytes: UInt64 {
+    public nonisolated var totalBytes: UInt64 {
         bytesUploaded + bytesDownloaded
     }
 
     /// Update connection with new byte counts
-    public func with(
+    public nonisolated func with(
         state: ConnectionState? = nil,
         bytesUploaded: UInt64? = nil,
         bytesDownloaded: UInt64? = nil

@@ -6,7 +6,7 @@ public struct StatisticsViewState: Sendable, Equatable {
     public var connections: [SOCKS5Connection]
 
     public init(
-        statistics: ConnectionStatistics = ConnectionStatistics(),
+        statistics: ConnectionStatistics = ConnectionStatistics(sessionStartTime: Date()),
         connections: [SOCKS5Connection] = []
     ) {
         self.statistics = statistics

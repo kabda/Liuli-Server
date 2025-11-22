@@ -28,17 +28,13 @@ public final class StatisticsViewModel {
 
     private func startObserving() {
         updateTask = Task {
-            do {
-                for await statistics in try await trackStatisticsUseCase.observeStatistics() {
-                    guard !Task.isCancelled else { break }
+            for await statistics in trackStatisticsUseCase.observeStatistics() {
+                guard !Task.isCancelled else { break }
 
-                    state = StatisticsViewState(
-                        statistics: statistics,
-                        connections: statistics.recentConnections
-                    )
-                }
-            } catch {
-                Logger.ui.error("Failed to observe statistics: \(error.localizedDescription)")
+                state = StatisticsViewState(
+                    statistics: statistics,
+                    connections: statistics.historicalConnections
+                )
             }
         }
     }
@@ -46,9 +42,5 @@ public final class StatisticsViewModel {
     private func stopObserving() {
         updateTask?.cancel()
         updateTask = nil
-    }
-
-    deinit {
-        stopObserving()
     }
 }

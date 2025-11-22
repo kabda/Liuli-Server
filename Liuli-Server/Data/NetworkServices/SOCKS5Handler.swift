@@ -20,10 +20,13 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     private let charlesPort: Int
     private let onConnectionEstablished: @Sendable (SOCKS5ConnectionInfo) -> Void
     private let onConnectionClosed: @Sendable (String) -> Void
+    private let onTrafficUpdate: @Sendable (UUID, UInt64, UInt64) -> Void
     private var hasNotifiedConnection = false  // Track if we've already notified
     private var sourceIP: String?  // Store source IP for disconnection
+    private var connectionID: UUID?  // Store connection ID for traffic tracking
 
     struct SOCKS5ConnectionInfo: Sendable {
+        let connectionID: UUID
         let sourceIP: String
         let destinationHost: String
         let destinationPort: UInt16
@@ -33,12 +36,14 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
         charlesHost: String,
         charlesPort: Int,
         onConnectionEstablished: @escaping @Sendable (SOCKS5ConnectionInfo) -> Void,
-        onConnectionClosed: @escaping @Sendable (String) -> Void
+        onConnectionClosed: @escaping @Sendable (String) -> Void,
+        onTrafficUpdate: @escaping @Sendable (UUID, UInt64, UInt64) -> Void
     ) {
         self.charlesHost = charlesHost
         self.charlesPort = charlesPort
         self.onConnectionEstablished = onConnectionEstablished
         self.onConnectionClosed = onConnectionClosed
+        self.onTrafficUpdate = onTrafficUpdate
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -99,8 +104,11 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
         // Notify device connection immediately after successful handshake
         if !hasNotifiedConnection {
             let ip = context.channel.remoteAddress?.ipAddress ?? "unknown"
+            let connID = UUID()
             self.sourceIP = ip  // Store for disconnection
+            self.connectionID = connID  // Store for traffic tracking
             let connectionInfo = SOCKS5ConnectionInfo(
+                connectionID: connID,
                 sourceIP: ip,
                 destinationHost: "pending",  // Will be updated on CONNECT
                 destinationPort: 0
@@ -228,7 +236,10 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
 
         // Notify connection established (if not already notified)
         if !hasNotifiedConnection {
+            let connID = UUID()
+            self.connectionID = connID
             let connectionInfo = SOCKS5ConnectionInfo(
+                connectionID: connID,
                 sourceIP: sourceIP,
                 destinationHost: destinationHost,
                 destinationPort: destinationPort
@@ -244,6 +255,9 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     /// Connect to Charles proxy and set up forwarding
     private func connectToCharles(context: ChannelHandlerContext, destinationHost: String, destinationPort: UInt16) {
         let clientChannel = context.channel // Extract to avoid capturing context in closure
+        let connectionID = self.connectionID ?? UUID() // Use stored connection ID
+        let onTrafficUpdate = self.onTrafficUpdate // Capture callback
+
         let bootstrap = ClientBootstrap(group: context.eventLoop)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
@@ -269,9 +283,13 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
                 // Send success response to client FIRST
                 self.sendSuccessResponse(context: context)
 
-                // Add glue handler to forward data between client and Charles
+                // Add glue handler with traffic tracking
                 context.pipeline.addHandler(
-                    GlueHandler(peerChannel: charlesChannel),
+                    TrafficTrackingGlueHandler(
+                        peerChannel: charlesChannel,
+                        connectionID: connectionID,
+                        onTrafficUpdate: onTrafficUpdate
+                    ),
                     position: .after(self)
                 ).whenComplete { _ in
                     self.state = .forwarding
@@ -335,7 +353,76 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     }
 }
 
-/// Helper handler to forward data between client and Charles
+/// Helper handler to forward data between client and Charles with traffic tracking
+nonisolated final class TrafficTrackingGlueHandler: ChannelDuplexHandler, @unchecked Sendable {
+    typealias InboundIn = ByteBuffer
+    typealias OutboundIn = ByteBuffer
+    typealias OutboundOut = ByteBuffer
+
+    private let peerChannel: Channel
+    private let connectionID: UUID
+    private let onTrafficUpdate: @Sendable (UUID, UInt64, UInt64) -> Void
+    private var bytesUploaded: UInt64 = 0  // From client to Charles
+    private var bytesDownloaded: UInt64 = 0  // From Charles to client
+    private var updateTimer: RepeatedTask?
+
+    init(
+        peerChannel: Channel,
+        connectionID: UUID,
+        onTrafficUpdate: @escaping @Sendable (UUID, UInt64, UInt64) -> Void
+    ) {
+        self.peerChannel = peerChannel
+        self.connectionID = connectionID
+        self.onTrafficUpdate = onTrafficUpdate
+    }
+
+    func handlerAdded(context: ChannelHandlerContext) {
+        // Schedule periodic traffic updates (every 1 second)
+        updateTimer = context.eventLoop.scheduleRepeatedTask(
+            initialDelay: .seconds(1),
+            delay: .seconds(1)
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            self.onTrafficUpdate(self.connectionID, self.bytesUploaded, self.bytesDownloaded)
+        }
+    }
+
+    func handlerRemoved(context: ChannelHandlerContext) {
+        updateTimer?.cancel()
+        // Send final update
+        onTrafficUpdate(connectionID, bytesUploaded, bytesDownloaded)
+    }
+
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let buffer = unwrapInboundIn(data)
+        bytesUploaded += UInt64(buffer.readableBytes)
+        peerChannel.writeAndFlush(buffer, promise: nil)
+    }
+
+    func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
+        let buffer = unwrapOutboundIn(data)
+        bytesDownloaded += UInt64(buffer.readableBytes)
+        context.write(wrapOutboundOut(buffer), promise: promise)
+    }
+
+    func channelInactive(context: ChannelHandlerContext) {
+        updateTimer?.cancel()
+        // Send final update
+        onTrafficUpdate(connectionID, bytesUploaded, bytesDownloaded)
+        peerChannel.close(promise: nil)
+        context.fireChannelInactive()
+    }
+
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+        Logger.socks5.error("Traffic tracking glue handler error: \(error)")
+        updateTimer?.cancel()
+        onTrafficUpdate(connectionID, bytesUploaded, bytesDownloaded)
+        peerChannel.close(promise: nil)
+        context.close(promise: nil)
+    }
+}
+
+/// Legacy handler for backward compatibility (not used anymore)
 nonisolated final class GlueHandler: ChannelDuplexHandler, @unchecked Sendable {
     typealias InboundIn = ByteBuffer
     typealias OutboundIn = ByteBuffer

@@ -10,6 +10,8 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
     private var connectionsContinuation: AsyncStream<SOCKS5Connection>.Continuation?
     private var charlesHost: String = "localhost"
     private var charlesPort: Int = 8888
+    // Track active connections for traffic updates
+    private var activeConnections: [UUID: SOCKS5Connection] = [:]
 
     public init() {}
 
@@ -56,6 +58,7 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
 
                             Task {
                                 await self.notifyConnection(
+                                    connectionID: connectionInfo.connectionID,
                                     sourceIP: connectionInfo.sourceIP,
                                     destinationHost: connectionInfo.destinationHost,
                                     destinationPort: connectionInfo.destinationPort
@@ -67,6 +70,17 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
 
                             Task {
                                 await self.notifyDisconnection(sourceIP: sourceIP)
+                            }
+                        },
+                        onTrafficUpdate: { [weak self] connectionID, bytesUploaded, bytesDownloaded in
+                            guard let self = self else { return }
+
+                            Task {
+                                await self.updateTraffic(
+                                    connectionID: connectionID,
+                                    bytesUploaded: bytesUploaded,
+                                    bytesDownloaded: bytesDownloaded
+                                )
                             }
                         }
                     )
@@ -139,8 +153,9 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
         self.connectionsContinuation = continuation
     }
 
-    private func notifyConnection(sourceIP: String, destinationHost: String, destinationPort: UInt16) {
+    private func notifyConnection(connectionID: UUID, sourceIP: String, destinationHost: String, destinationPort: UInt16) {
         let connection = SOCKS5Connection(
+            id: connectionID,
             sourceIP: sourceIP,
             destinationHost: destinationHost,
             destinationPort: destinationPort,
@@ -148,21 +163,32 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
             startTime: Date()
         )
 
+        activeConnections[connectionID] = connection
         connectionsContinuation?.yield(connection)
         Logger.socks5.info("New SOCKS5 connection: \(sourceIP) -> \(destinationHost):\(destinationPort)")
     }
 
-    private func notifyDisconnection(sourceIP: String) {
-        let connection = SOCKS5Connection(
-            sourceIP: sourceIP,
-            destinationHost: "",
-            destinationPort: 0,
-            state: .closed,
-            startTime: Date()
+    private func updateTraffic(connectionID: UUID, bytesUploaded: UInt64, bytesDownloaded: UInt64) {
+        guard var connection = activeConnections[connectionID] else { return }
+
+        connection = connection.with(
+            bytesUploaded: bytesUploaded,
+            bytesDownloaded: bytesDownloaded
         )
 
+        activeConnections[connectionID] = connection
         connectionsContinuation?.yield(connection)
-        Logger.socks5.info("SOCKS5 connection closed: \(sourceIP)")
+    }
+
+    private func notifyDisconnection(sourceIP: String) {
+        // Find connection by source IP
+        if let connectionID = activeConnections.first(where: { $0.value.sourceIP == sourceIP })?.key,
+           var connection = activeConnections[connectionID] {
+            connection = connection.with(state: .closed)
+            activeConnections.removeValue(forKey: connectionID)
+            connectionsContinuation?.yield(connection)
+            Logger.socks5.info("SOCKS5 connection closed: \(sourceIP)")
+        }
     }
 
     private func handleServerClosed() {

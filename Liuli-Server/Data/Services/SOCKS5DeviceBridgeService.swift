@@ -8,10 +8,12 @@ public actor SOCKS5DeviceBridgeService {
     private let deviceMonitor: DeviceMonitorRepository
     private var monitoringTask: Task<Void, Never>?
 
-    // Track connections by source IP
+    // Track connections by source IP (device ID)
     private var activeConnections: [String: UUID] = [:]
-    // Track connection count per IP (to handle multiple TCP connections from same device)
-    private var connectionCounts: [String: Int] = [:]
+    // Track all SOCKS5 connection IDs per source IP
+    private var ipToConnections: [String: Set<UUID>] = [:]
+    // Track traffic per connection ID
+    private var connectionTraffic: [UUID: (bytesSent: Int64, bytesReceived: Int64)] = [:]
     // Track pending removal tasks (grace period before removing device)
     private var removalTasks: [String: Task<Void, Never>] = [:]
     // Grace period before removing device (30 seconds)
@@ -59,25 +61,44 @@ public actor SOCKS5DeviceBridgeService {
 
         // Check connection state
         if socks5Connection.state == .closed {
-            // Decrement connection count for this IP
-            let count = (connectionCounts[sourceIP] ?? 1) - 1
+            // Remove this connection from tracking
+            ipToConnections[sourceIP]?.remove(socks5Connection.id)
+            connectionTraffic.removeValue(forKey: socks5Connection.id)
 
-            Logger.bridge.info("📊 Connection count for \(sourceIP): \(connectionCounts[sourceIP] ?? 0) -> \(count)")
+            let remainingCount = ipToConnections[sourceIP]?.count ?? 0
 
-            if count <= 0 {
+            Logger.bridge.info("📊 Connection count for \(sourceIP): \(remainingCount + 1) -> \(remainingCount)")
+
+            if remainingCount == 0 {
                 // All connections closed, schedule removal after grace period
-                connectionCounts.removeValue(forKey: sourceIP)
+                ipToConnections.removeValue(forKey: sourceIP)
                 scheduleDeviceRemoval(sourceIP: sourceIP)
             } else {
-                // Still have active connections from this IP
-                connectionCounts[sourceIP] = count
-                Logger.bridge.debug("Connection closed from \(sourceIP), \(count) remaining")
+                // Still have active connections, update traffic
+                if let deviceId = activeConnections[sourceIP] {
+                    let totalTraffic = calculateTotalTraffic(for: sourceIP)
+                    await deviceMonitor.updateTrafficStatistics(
+                        deviceId,
+                        bytesSent: totalTraffic.bytesSent,
+                        bytesReceived: totalTraffic.bytesReceived
+                    )
+                }
+                Logger.bridge.debug("Connection closed from \(sourceIP), \(remainingCount) remaining")
             }
             return
         }
 
+        // Update traffic tracking for this specific connection
+        connectionTraffic[socks5Connection.id] = (
+            bytesSent: Int64(socks5Connection.bytesUploaded),
+            bytesReceived: Int64(socks5Connection.bytesDownloaded)
+        )
+
         // New or existing connection from this IP
         if let existingDeviceId = activeConnections[sourceIP] {
+            // Add this connection to the IP's connection set
+            ipToConnections[sourceIP, default: []].insert(socks5Connection.id)
+
             // Cancel pending removal task (device reconnected)
             if let removalTask = removalTasks[sourceIP] {
                 removalTask.cancel()
@@ -85,15 +106,23 @@ public actor SOCKS5DeviceBridgeService {
                 Logger.bridge.info("🔄 Device reconnected before removal: \(sourceIP)")
             }
 
-            // Increment connection count for existing device
-            let newCount = (connectionCounts[sourceIP] ?? 0) + 1
-            connectionCounts[sourceIP] = newCount
-            Logger.bridge.info("📊 Additional connection from existing device: \(sourceIP), count: \(connectionCounts[sourceIP] ?? 0) -> \(newCount)")
+            // Update traffic statistics for existing device
+            let totalTraffic = calculateTotalTraffic(for: sourceIP)
+            await deviceMonitor.updateTrafficStatistics(
+                existingDeviceId,
+                bytesSent: totalTraffic.bytesSent,
+                bytesReceived: totalTraffic.bytesReceived
+            )
+
+            let connectionCount = ipToConnections[sourceIP]?.count ?? 0
+            Logger.bridge.info("📊 Connection from device: \(sourceIP), total connections: \(connectionCount)")
         } else {
             // New device connection
             let deviceId = UUID()
             activeConnections[sourceIP] = deviceId
-            connectionCounts[sourceIP] = 1
+            ipToConnections[sourceIP] = [socks5Connection.id]
+
+            let totalTraffic = calculateTotalTraffic(for: sourceIP)
 
             // Create device connection on MainActor
             await MainActor.run {
@@ -102,8 +131,8 @@ public actor SOCKS5DeviceBridgeService {
                     deviceName: extractDeviceName(from: sourceIP),
                     connectedAt: socks5Connection.startTime,
                     status: .active,
-                    bytesSent: 0,
-                    bytesReceived: 0
+                    bytesSent: totalTraffic.bytesSent,
+                    bytesReceived: totalTraffic.bytesReceived
                 )
 
                 Task {
@@ -111,8 +140,27 @@ public actor SOCKS5DeviceBridgeService {
                 }
             }
 
-            Logger.bridge.info("✅ New device connected: \(sourceIP), count=1")
+            Logger.bridge.info("✅ New device connected: \(sourceIP), initial connections: 1")
         }
+    }
+
+    /// Calculate total traffic for all connections from a specific IP
+    private func calculateTotalTraffic(for sourceIP: String) -> (bytesSent: Int64, bytesReceived: Int64) {
+        guard let connectionIDs = ipToConnections[sourceIP] else {
+            return (bytesSent: 0, bytesReceived: 0)
+        }
+
+        var totalSent: Int64 = 0
+        var totalReceived: Int64 = 0
+
+        for connectionID in connectionIDs {
+            if let traffic = connectionTraffic[connectionID] {
+                totalSent += traffic.bytesSent
+                totalReceived += traffic.bytesReceived
+            }
+        }
+
+        return (bytesSent: totalSent, bytesReceived: totalReceived)
     }
 
     /// Schedule device removal after grace period

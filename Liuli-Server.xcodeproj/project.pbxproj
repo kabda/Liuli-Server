@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		907A81CD2ED1923500B7EDF0 /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = 907A81CC2ED1923500B7EDF0 /* NIO */; };
+		907A81CF2ED1923500B7EDF0 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = 907A81CE2ED1923500B7EDF0 /* NIOCore */; };
+		907A81D12ED1923500B7EDF0 /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = 907A81D02ED1923500B7EDF0 /* NIOHTTP1 */; };
+		907A81D32ED1923500B7EDF0 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = 907A81D22ED1923500B7EDF0 /* NIOPosix */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		903511272ECF6AAF00882C28 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +59,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				907A81D12ED1923500B7EDF0 /* NIOHTTP1 in Frameworks */,
+				907A81D32ED1923500B7EDF0 /* NIOPosix in Frameworks */,
+				907A81CF2ED1923500B7EDF0 /* NIOCore in Frameworks */,
+				907A81CD2ED1923500B7EDF0 /* NIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +123,10 @@
 			);
 			name = "Liuli-Server";
 			packageProductDependencies = (
+				907A81CC2ED1923500B7EDF0 /* NIO */,
+				907A81CE2ED1923500B7EDF0 /* NIOCore */,
+				907A81D02ED1923500B7EDF0 /* NIOHTTP1 */,
+				907A81D22ED1923500B7EDF0 /* NIOPosix */,
 			);
 			productName = "Liuli-Server";
 			productReference = 903511172ECF6AAE00882C28 /* Liuli-Server.app */;
@@ -196,6 +211,9 @@
 			);
 			mainGroup = 9035110E2ECF6AAE00882C28;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 903511182ECF6AAE00882C28 /* Products */;
 			projectDirPath = "";
@@ -324,7 +342,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -382,7 +400,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -395,6 +413,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Liuli-Server.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -403,13 +422,16 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Liuli-Server/Resources/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.kabda.Liuli-Server";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -418,7 +440,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -427,6 +449,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Liuli-Server.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -435,13 +458,16 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Liuli-Server/Resources/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.kabda.Liuli-Server";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -450,7 +476,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -462,7 +488,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W8E8RFHDS3;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.kabda.Liuli-ServerTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -483,7 +509,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W8E8RFHDS3;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.kabda.Liuli-ServerTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -574,6 +600,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://gitee.com/kabda/swift-nio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.90.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		907A81CC2ED1923500B7EDF0 /* NIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIO;
+		};
+		907A81CE2ED1923500B7EDF0 /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+		907A81D02ED1923500B7EDF0 /* NIOHTTP1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOHTTP1;
+		};
+		907A81D22ED1923500B7EDF0 /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 907A81CB2ED1923500B7EDF0 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9035110F2ECF6AAE00882C28 /* Project object */;
 }

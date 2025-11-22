@@ -1,12 +1,35 @@
 import Foundation
 
-/// Actor-based repository for network status monitoring with bridge integration stubs
+/// Actor-based repository for network status monitoring with real bridge integration
 public actor NetworkStatusRepositoryImpl: NetworkStatusRepository {
     private var currentStatus: NetworkStatus
     private var continuations: [UUID: AsyncStream<NetworkStatus>.Continuation] = [:]
 
-    public init() {
+    // Real service integration
+    private let startServiceUseCase: StartServiceUseCase
+    private let stopServiceUseCase: StopServiceUseCase
+    private let configRepository: ConfigurationRepository
+    private let socks5Repository: SOCKS5ServerRepository
+    private let bridgeService: SOCKS5DeviceBridgeService
+
+    public init(
+        startServiceUseCase: StartServiceUseCase,
+        stopServiceUseCase: StopServiceUseCase,
+        configRepository: ConfigurationRepository,
+        socks5Repository: SOCKS5ServerRepository,
+        bridgeService: SOCKS5DeviceBridgeService
+    ) {
+        self.startServiceUseCase = startServiceUseCase
+        self.stopServiceUseCase = stopServiceUseCase
+        self.configRepository = configRepository
+        self.socks5Repository = socks5Repository
+        self.bridgeService = bridgeService
         self.currentStatus = NetworkStatus(isListening: false)
+
+        // Start monitoring SOCKS5 connections
+        Task {
+            await self.startConnectionMonitoring()
+        }
     }
 
     public nonisolated func observeStatus() -> AsyncStream<NetworkStatus> {
@@ -34,31 +57,59 @@ public actor NetworkStatusRepositoryImpl: NetworkStatusRepository {
     }
 
     public func enableBridge() async throws {
-        // TODO: Phase 7 - Integrate with actual bridge implementation
-        // For now, simulate bridge activation
+        // Start real SOCKS5 server
+        let bridgeService = try await startServiceUseCase.execute()
+
+        // Start SOCKS5-to-Device bridge monitoring
+        await self.bridgeService.startMonitoring()
+
+        // Get actual port from configuration
+        let config = try await configRepository.loadConfiguration()
+
         currentStatus = NetworkStatus(
-            isListening: true,
-            listeningPort: 12345,
-            activeConnectionCount: 0
+            isListening: bridgeService.state == .running,
+            listeningPort: UInt16(config.socks5Port),
+            activeConnectionCount: bridgeService.connectedDeviceCount
         )
         emitCurrentState()
+
+        Logger.network.info("Bridge enabled on port \(config.socks5Port)")
     }
 
     public func disableBridge() async throws {
-        // TODO: Phase 7 - Integrate with actual bridge implementation
-        // For now, simulate bridge deactivation
-        let activeCount = currentStatus.activeConnectionCount
+        // Stop SOCKS5-to-Device bridge monitoring
+        await bridgeService.stopMonitoring()
+
+        // Stop real SOCKS5 server
+        _ = try await stopServiceUseCase.execute()
+
         currentStatus = NetworkStatus(
             isListening: false,
             listeningPort: nil,
-            activeConnectionCount: activeCount  // Keep existing connections
+            activeConnectionCount: 0
         )
         emitCurrentState()
+
+        Logger.network.info("Bridge disabled")
     }
 
     private func emitCurrentState() {
         for continuation in continuations.values {
             continuation.yield(currentStatus)
+        }
+    }
+
+    /// Monitor SOCKS5 connections and update active count
+    private func startConnectionMonitoring() async {
+        let stream = await socks5Repository.observeConnections()
+        for await _ in stream {
+            // Update connection count
+            // Note: This is simplified - in production you'd track active connections
+            if currentStatus.isListening {
+                // For now, just emit current status
+                // TODO: Implement proper connection tracking
+                emitCurrentState()
+            }
         }
     }
 }

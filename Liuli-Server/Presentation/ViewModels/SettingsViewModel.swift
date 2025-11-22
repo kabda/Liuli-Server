@@ -82,13 +82,9 @@ public final class SettingsViewModel {
     }
 
     private func loadSettings() async {
-        do {
-            let settings = try await manageSettingsUseCase.loadSettings()
-            state.settings = settings
-            state.errorMessage = nil
-        } catch {
-            state.errorMessage = "Failed to load settings: \(error.localizedDescription)"
-        }
+        let settings = await manageSettingsUseCase.loadSettings()
+        state.settings = settings
+        state.errorMessage = nil
     }
 
     private func saveSettings() async {

@@ -1,10 +1,15 @@
 import Foundation
+import NIOCore
+import NIOPosix
 
 /// SOCKS5 server repository using SwiftNIO (FR-007 to FR-016)
-/// ⚠️ PLACEHOLDER: Requires SwiftNIO implementation (T002 manual step)
 public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
+    private var eventLoopGroup: MultiThreadedEventLoopGroup?
+    private var serverChannel: Channel?
     private var isServerRunning = false
     private var connectionsContinuation: AsyncStream<SOCKS5Connection>.Continuation?
+    private var charlesHost: String = "localhost"
+    private var charlesPort: Int = 8888
 
     public init() {}
 
@@ -13,29 +18,99 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
             throw BridgeServiceError.serviceStartFailed(reason: "Server already running")
         }
 
-        // TODO: Initialize SwiftNIO EventLoopGroup
-        // TODO: Create ServerBootstrap with channel pipeline:
-        //   - ByteToMessageHandler (SOCKS5 frame decoding)
-        //   - SOCKS5Handler (handshake and CONNECT handling)
-        //   - IPAddressValidationHandler (RFC 1918 validation)
-        //   - CharlesForwardingHandler (proxy forwarding)
-        //   - ConnectionTracker (byte counting, idle timeout)
+        // Create event loop group with optimal thread count
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        self.eventLoopGroup = group
 
-        // Placeholder implementation
-        isServerRunning = true
-        Logger.socks5.info("SOCKS5 server started on port \(port) [PLACEHOLDER]")
+        // Capture Charles config for use in non-isolated context
+        let charlesHost = self.charlesHost
+        let charlesPort = self.charlesPort
 
-        // NOTE: Real implementation in T029-T031 requires SwiftNIO
-        // See plan.md Traffic Forwarding Strategy section
+        // Create server bootstrap with channel pipeline
+        let bootstrap = ServerBootstrap(group: group)
+            // Socket options
+            .serverChannelOption(ChannelOptions.backlog, value: 256)
+            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+
+            // Child channel options (for each client connection)
+            .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+            .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 16)
+            .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
+
+            // Child channel initializer (sets up pipeline for each connection)
+            .childChannelInitializer { [weak self] channel in
+                guard let self = self else {
+                    return channel.eventLoop.makeSucceededFuture(())
+                }
+
+                return channel.pipeline.addHandlers([
+                    // 1. IP address validation (reject non-RFC 1918)
+                    IPAddressValidationHandler(),
+
+                    // 2. SOCKS5 protocol handler
+                    SOCKS5Handler(
+                        charlesHost: charlesHost,
+                        charlesPort: charlesPort,
+                        onConnectionEstablished: { [weak self] connectionInfo in
+                            guard let self = self else { return }
+
+                            Task {
+                                await self.notifyConnection(
+                                    sourceIP: connectionInfo.sourceIP,
+                                    destinationHost: connectionInfo.destinationHost,
+                                    destinationPort: connectionInfo.destinationPort
+                                )
+                            }
+                        }
+                    )
+                ])
+            }
+
+        do {
+            // Bind to port
+            let channel = try await bootstrap.bind(host: "0.0.0.0", port: Int(port)).get()
+            self.serverChannel = channel
+            self.isServerRunning = true
+
+            Logger.socks5.info("SOCKS5 server started on 0.0.0.0:\(port)")
+
+            // Handle server channel closure
+            channel.closeFuture.whenComplete { [weak self] _ in
+                Task {
+                    await self?.handleServerClosed()
+                }
+            }
+
+        } catch {
+            // Cleanup on failure
+            try? await group.shutdownGracefully()
+            self.eventLoopGroup = nil
+            throw BridgeServiceError.serviceStartFailed(reason: "Failed to bind to port \(port): \(error.localizedDescription)")
+        }
     }
 
     public func stop() async throws {
-        guard isServerRunning else { return }
+        guard isServerRunning else {
+            Logger.socks5.warning("SOCKS5 server not running")
+            return
+        }
 
-        // TODO: Shutdown SwiftNIO EventLoopGroup gracefully
-        // TODO: Close all active connections
+        // Close server channel
+        if let channel = serverChannel {
+            try await channel.close()
+            self.serverChannel = nil
+        }
+
+        // Shutdown event loop group
+        if let group = eventLoopGroup {
+            try await group.shutdownGracefully()
+            self.eventLoopGroup = nil
+        }
 
         isServerRunning = false
+        connectionsContinuation?.finish()
+        connectionsContinuation = nil
+
         Logger.socks5.info("SOCKS5 server stopped")
     }
 
@@ -51,7 +126,38 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
         }
     }
 
+    // MARK: - Private Methods
+
     private func setConnectionsContinuation(_ continuation: AsyncStream<SOCKS5Connection>.Continuation) {
         self.connectionsContinuation = continuation
+    }
+
+    private func notifyConnection(sourceIP: String, destinationHost: String, destinationPort: UInt16) {
+        let connection = SOCKS5Connection(
+            sourceIP: sourceIP,
+            destinationHost: destinationHost,
+            destinationPort: destinationPort,
+            state: .active,
+            startTime: Date()
+        )
+
+        connectionsContinuation?.yield(connection)
+        Logger.socks5.info("New SOCKS5 connection: \(sourceIP) -> \(destinationHost):\(destinationPort)")
+    }
+
+    private func handleServerClosed() {
+        Logger.socks5.warning("Server channel closed unexpectedly")
+        isServerRunning = false
+        connectionsContinuation?.finish()
+        connectionsContinuation = nil
+    }
+
+    // MARK: - Configuration
+
+    /// Update Charles proxy target (called before start)
+    public func configureCharlesProxy(host: String, port: Int) async {
+        self.charlesHost = host
+        self.charlesPort = port
+        Logger.socks5.debug("Charles proxy configured: \(host):\(port)")
     }
 }

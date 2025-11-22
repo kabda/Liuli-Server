@@ -38,6 +38,12 @@ public struct StartServiceUseCase: Sendable {
             try? await charlesRepository.launchCharles()
         }
 
+        // Configure SOCKS5 server with Charles proxy settings
+        await socks5Repository.configureCharlesProxy(
+            host: config.charlesHost,
+            port: Int(config.charlesPort)
+        )
+
         // Start SOCKS5 server (FR-007)
         try await socks5Repository.start(port: config.socks5Port)
 

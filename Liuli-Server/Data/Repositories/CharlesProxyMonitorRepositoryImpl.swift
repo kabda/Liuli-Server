@@ -10,8 +10,8 @@ public actor CharlesProxyMonitorRepositoryImpl: CharlesProxyMonitorRepository {
 
     public nonisolated func observeAvailability(interval: TimeInterval) -> AsyncStream<CharlesStatus> {
         AsyncStream { continuation in
-            let task = Task {
-                let host = "localhost"
+            let task = Task(priority: .medium) {
+                let host = "127.0.0.1"
                 let port: UInt16 = 8888
 
                 // TODO: Phase 7 - Load from settings
@@ -30,48 +30,73 @@ public actor CharlesProxyMonitorRepositoryImpl: CharlesProxyMonitorRepository {
     }
 
     public func checkAvailability(host: String, port: UInt16) async -> CharlesStatus {
-        // Send HTTP CONNECT probe to verify Charles is responding
-        let urlString = "http://\(host):\(port)"
-        guard let url = URL(string: urlString) else {
+        // Perform a lightweight TCP connectivity probe instead of a full HTTP request.
+        // If we can connect to host:port within the timeout, we treat Charles as available.
+        let timeout: TimeInterval = 2.0
+
+        var inputStream: InputStream?
+        var outputStream: OutputStream?
+        Stream.getStreamsToHost(withName: host, port: Int(port), inputStream: &inputStream, outputStream: &outputStream)
+
+        guard let input = inputStream, let output = outputStream else {
+            let message = "Failed to create TCP streams"
+            Logger.charles.error("Charles TCP health check failed: \(message)")
             return CharlesStatus(
                 availability: .unavailable,
                 proxyHost: host,
                 proxyPort: port,
-                errorMessage: "Invalid URL"
+                errorMessage: message
             )
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "CONNECT"
-        request.timeoutInterval = 2.0
+        input.open()
+        output.open()
 
-        do {
-            let (_, response) = try await urlSession.data(for: request)
+        let deadline = Date().addingTimeInterval(timeout)
 
-            // Check if response indicates proxy is available
-            if let httpResponse = response as? HTTPURLResponse {
-                let isAvailable = (200...299).contains(httpResponse.statusCode) || httpResponse.statusCode == 407
-
+        while Date() < deadline {
+            // If either stream reports an error, treat as unavailable.
+            if input.streamStatus == .error || output.streamStatus == .error {
+                let error = input.streamError ?? output.streamError
+                let message = error?.localizedDescription ?? "Stream error"
+                Logger.charles.error("Charles TCP health check failed: \(message)")
+                input.close()
+                output.close()
                 return CharlesStatus(
-                    availability: isAvailable ? .available : .unavailable,
+                    availability: .unavailable,
                     proxyHost: host,
                     proxyPort: port,
-                    errorMessage: isAvailable ? nil : "HTTP \(httpResponse.statusCode)"
+                    errorMessage: message
                 )
             }
 
-            return CharlesStatus(
-                availability: .available,
-                proxyHost: host,
-                proxyPort: port
-            )
-        } catch {
-            return CharlesStatus(
-                availability: .unavailable,
-                proxyHost: host,
-                proxyPort: port,
-                errorMessage: error.localizedDescription
-            )
+            // If streams are open (or at least opening) without error, consider the port reachable.
+            if (input.streamStatus == .open || input.streamStatus == .opening) &&
+                (output.streamStatus == .open || output.streamStatus == .opening) {
+                input.close()
+                output.close()
+                return CharlesStatus(
+                    availability: .available,
+                    proxyHost: host,
+                    proxyPort: port,
+                    errorMessage: nil
+                )
+            }
+
+            // Poll at a small interval while waiting for the connection to settle.
+            try? await Task.sleep(for: .milliseconds(100))
         }
+
+        input.close()
+        output.close()
+
+        let message = "TCP probe timed out"
+        Logger.charles.error("Charles TCP health check failed: \(message)")
+        return CharlesStatus(
+            availability: .unavailable,
+            proxyHost: host,
+            proxyPort: port,
+            errorMessage: message
+        )
     }
 }

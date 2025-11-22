@@ -32,15 +32,35 @@ public final class AppDependencyContainer {
     }()
 
     public lazy var networkStatusRepository: NetworkStatusRepository = {
-        NetworkStatusRepositoryImpl()
+        NetworkStatusRepositoryImpl(
+            startServiceUseCase: startServiceUseCase,
+            stopServiceUseCase: stopServiceUseCase,
+            configRepository: configRepository,
+            socks5Repository: socks5Repository,
+            bridgeService: socks5DeviceBridgeService
+        )
     }()
 
     public lazy var charlesProxyMonitorRepository: CharlesProxyMonitorRepository = {
-        CharlesProxyMonitorRepositoryImpl()
+        let config = URLSessionConfiguration.default
+        // Bypass system HTTP proxy settings so that health checks talk directly
+        // to the local Charles port instead of going through the proxy again.
+        config.connectionProxyDictionary = [:]
+        let session = URLSession(configuration: config)
+        return CharlesProxyMonitorRepositoryImpl(urlSession: session)
     }()
 
     public lazy var settingsRepository: SettingsRepository = {
         SettingsRepositoryImpl()
+    }()
+
+    // MARK: - Services
+
+    public lazy var socks5DeviceBridgeService: SOCKS5DeviceBridgeService = {
+        SOCKS5DeviceBridgeService(
+            socks5Repository: socks5Repository,
+            deviceMonitor: deviceMonitorRepository
+        )
     }()
 
     // MARK: - Use Cases

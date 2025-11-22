@@ -14,6 +14,7 @@ enum Logger {
     nonisolated static let configuration = OSLog(subsystem: subsystem, category: "configuration")
     nonisolated static let ui = OSLog(subsystem: subsystem, category: "ui")
     nonisolated static let network = OSLog(subsystem: subsystem, category: "network")
+    nonisolated static let bridge = OSLog(subsystem: subsystem, category: "bridge")
 }
 
 /// Convenience extension for logging with proper log levels

@@ -1,107 +1,101 @@
 import SwiftUI
 
-/// Menu bar dropdown view (FR-026)
+/// Menu bar dropdown view with bridge toggle control
 public struct MenuBarView: View {
-    @Bindable var viewModel: MenuBarViewModel
+    @State private var viewModel: MenuBarViewModel
 
     public init(viewModel: MenuBarViewModel) {
-        self.viewModel = viewModel
+        self._viewModel = State(initialValue: viewModel)
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Status section
+        VStack(alignment: .leading, spacing: 8) {
+            // Header with connection count
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.state.statusText)
+                Text("Liuli Server")
                     .font(.headline)
 
-                if viewModel.state.serviceState == .running {
-                    Text("\(viewModel.state.connectedDeviceCount) devices connected")
+                if viewModel.state.isBridgeEnabled {
+                    Text("\(viewModel.state.connectionCount) device(s) connected")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Bridge disabled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
 
             Divider()
+                .padding(.vertical, 4)
 
-            // Actions
-            VStack(alignment: .leading, spacing: 0) {
-                if viewModel.state.serviceState == .idle || viewModel.state.serviceState == .error {
-                    MenuButton(
-                        title: "menu.startService".localized(),
-                        action: { viewModel.send(.startService) }
-                    )
-                } else if viewModel.state.serviceState == .running {
-                    MenuButton(
-                        title: "menu.stopService".localized(),
-                        action: { viewModel.send(.stopService) }
-                    )
-                }
+            // Bridge toggle
+            Toggle("Enable Bridge", isOn: Binding(
+                get: { viewModel.state.isBridgeEnabled },
+                set: { _ in viewModel.send(.toggleBridge) }
+            ))
+            .padding(.horizontal, 12)
 
-                MenuButton(
-                    title: "menu.openCharles".localized(),
-                    action: { viewModel.send(.openCharles) }
-                )
+            Divider()
+                .padding(.vertical, 4)
 
-                MenuButton(
-                    title: "menu.viewStatistics".localized(),
-                    action: { viewModel.send(.viewStatistics) }
-                )
+            // Menu actions
+            MenuButton("Show Main Window") {
+                viewModel.send(.showMainWindow)
+            }
 
+            MenuButton("Settings...") {
+                viewModel.send(.openSettings)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            MenuButton("Quit") {
+                viewModel.send(.quit)
+            }
+
+            // Error message if any
+            if let error = viewModel.state.errorMessage {
                 Divider()
                     .padding(.vertical, 4)
 
-                MenuButton(
-                    title: "menu.preferences".localized(),
-                    action: { viewModel.send(.openPreferences) }
-                )
-
-                MenuButton(
-                    title: "menu.quit".localized(),
-                    action: { viewModel.send(.quit) }
-                )
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
             }
         }
-        .padding(.vertical, 8)
         .frame(width: 250)
+        .onAppear {
+            viewModel.startMonitoring()
+        }
+        .onDisappear {
+            viewModel.stopMonitoring()
+        }
     }
 }
 
 /// Menu button component
-struct MenuButton: View {
+private struct MenuButton: View {
     let title: String
     let action: () -> Void
+
+    init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .hoverEffect()
+        .padding(.vertical, 4)
     }
-}
-
-#Preview {
-    MenuBarView(
-        viewModel: MenuBarViewModel(
-            startServiceUseCase: StartServiceUseCase(
-                socks5Repository: NIOSwiftSOCKS5ServerRepository(),
-                bonjourRepository: NetServiceBonjourRepository(),
-                charlesRepository: ProcessCharlesRepository(),
-                configRepository: UserDefaultsConfigRepository()
-            ),
-            stopServiceUseCase: StopServiceUseCase(
-                socks5Repository: NIOSwiftSOCKS5ServerRepository(),
-                bonjourRepository: NetServiceBonjourRepository()
-            ),
-            detectCharlesUseCase: DetectCharlesUseCase(
-                charlesRepository: ProcessCharlesRepository()
-            )
-        )
-    )
 }

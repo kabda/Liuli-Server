@@ -61,6 +61,13 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
                                     destinationPort: connectionInfo.destinationPort
                                 )
                             }
+                        },
+                        onConnectionClosed: { [weak self] sourceIP in
+                            guard let self = self else { return }
+
+                            Task {
+                                await self.notifyDisconnection(sourceIP: sourceIP)
+                            }
                         }
                     )
                 ])
@@ -143,6 +150,19 @@ public actor NIOSwiftSOCKS5ServerRepository: SOCKS5ServerRepository {
 
         connectionsContinuation?.yield(connection)
         Logger.socks5.info("New SOCKS5 connection: \(sourceIP) -> \(destinationHost):\(destinationPort)")
+    }
+
+    private func notifyDisconnection(sourceIP: String) {
+        let connection = SOCKS5Connection(
+            sourceIP: sourceIP,
+            destinationHost: "",
+            destinationPort: 0,
+            state: .closed,
+            startTime: Date()
+        )
+
+        connectionsContinuation?.yield(connection)
+        Logger.socks5.info("SOCKS5 connection closed: \(sourceIP)")
     }
 
     private func handleServerClosed() {

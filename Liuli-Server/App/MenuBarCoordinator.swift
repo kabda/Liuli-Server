@@ -41,6 +41,9 @@ public final class MenuBarCoordinator {
 
         self.popover = popover
 
+        // Start monitoring network status
+        viewModel.startMonitoring()
+
         // Observe state changes to update icon
         observeStateChanges()
     }

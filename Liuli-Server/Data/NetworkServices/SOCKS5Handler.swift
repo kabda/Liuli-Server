@@ -19,6 +19,9 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     private let charlesHost: String
     private let charlesPort: Int
     private let onConnectionEstablished: @Sendable (SOCKS5ConnectionInfo) -> Void
+    private let onConnectionClosed: @Sendable (String) -> Void
+    private var hasNotifiedConnection = false  // Track if we've already notified
+    private var sourceIP: String?  // Store source IP for disconnection
 
     struct SOCKS5ConnectionInfo: Sendable {
         let sourceIP: String
@@ -29,11 +32,13 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     init(
         charlesHost: String,
         charlesPort: Int,
-        onConnectionEstablished: @escaping @Sendable (SOCKS5ConnectionInfo) -> Void
+        onConnectionEstablished: @escaping @Sendable (SOCKS5ConnectionInfo) -> Void,
+        onConnectionClosed: @escaping @Sendable (String) -> Void
     ) {
         self.charlesHost = charlesHost
         self.charlesPort = charlesPort
         self.onConnectionEstablished = onConnectionEstablished
+        self.onConnectionClosed = onConnectionClosed
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -91,6 +96,20 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
         context.writeAndFlush(wrapInboundOut(response), promise: nil)
         state = .waitingForRequest
 
+        // Notify device connection immediately after successful handshake
+        if !hasNotifiedConnection {
+            let ip = context.channel.remoteAddress?.ipAddress ?? "unknown"
+            self.sourceIP = ip  // Store for disconnection
+            let connectionInfo = SOCKS5ConnectionInfo(
+                sourceIP: ip,
+                destinationHost: "pending",  // Will be updated on CONNECT
+                destinationPort: 0
+            )
+            onConnectionEstablished(connectionInfo)
+            hasNotifiedConnection = true
+            Logger.socks5.info("New device connected: \(ip)")
+        }
+
         Logger.socks5.debug("SOCKS5 greeting handled, waiting for request")
     }
 
@@ -116,7 +135,9 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
         // Only support CONNECT (0x01)
         guard cmd == 0x01 else {
             Logger.socks5.error("Unsupported SOCKS5 command: \(cmd)")
-            sendErrorResponse(context: context, errorCode: 0x07) // Command not supported
+            // Send error response but keep connection open
+            // VPN clients may send multiple requests on the same connection
+            sendErrorResponse(context: context, errorCode: 0x07, closeConnection: false)
             return
         }
 
@@ -205,13 +226,16 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
 
         Logger.socks5.info("SOCKS5 CONNECT: \(sourceIP) -> \(destinationHost):\(destinationPort)")
 
-        // Notify connection established
-        let connectionInfo = SOCKS5ConnectionInfo(
-            sourceIP: sourceIP,
-            destinationHost: destinationHost,
-            destinationPort: destinationPort
-        )
-        onConnectionEstablished(connectionInfo)
+        // Notify connection established (if not already notified)
+        if !hasNotifiedConnection {
+            let connectionInfo = SOCKS5ConnectionInfo(
+                sourceIP: sourceIP,
+                destinationHost: destinationHost,
+                destinationPort: destinationPort
+            )
+            onConnectionEstablished(connectionInfo)
+            hasNotifiedConnection = true
+        }
 
         // Connect to Charles proxy
         connectToCharles(context: context, destinationHost: destinationHost, destinationPort: destinationPort)
@@ -275,7 +299,7 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
     }
 
     /// Send SOCKS5 error response
-    private func sendErrorResponse(context: ChannelHandlerContext, errorCode: UInt8) {
+    private func sendErrorResponse(context: ChannelHandlerContext, errorCode: UInt8, closeConnection: Bool = true) {
         var response = context.channel.allocator.buffer(capacity: 10)
         response.writeInteger(UInt8(0x05)) // VERSION
         response.writeInteger(errorCode)   // Error code
@@ -284,16 +308,30 @@ nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendabl
         response.writeInteger(UInt32(0), endianness: .big)   // BND.ADDR = 0.0.0.0
         response.writeInteger(UInt16(0), endianness: .big)   // BND.PORT = 0
 
-        context.writeAndFlush(wrapInboundOut(response)).whenComplete { _ in
-            context.close(promise: nil)
+        if closeConnection {
+            context.writeAndFlush(wrapInboundOut(response)).whenComplete { _ in
+                context.close(promise: nil)
+            }
+            state = .closed
+        } else {
+            context.writeAndFlush(wrapInboundOut(response), promise: nil)
+            // Keep connection open, reset to wait for next request
+            state = .waitingForRequest
         }
-
-        state = .closed
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         Logger.socks5.error("SOCKS5 handler error: \(error)")
         context.close(promise: nil)
+    }
+
+    func channelInactive(context: ChannelHandlerContext) {
+        // Connection closed, notify device disconnection
+        if let ip = sourceIP {
+            onConnectionClosed(ip)
+            Logger.socks5.info("Device disconnected: \(ip)")
+        }
+        context.fireChannelInactive()
     }
 }
 

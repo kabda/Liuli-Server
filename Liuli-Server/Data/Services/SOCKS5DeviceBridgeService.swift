@@ -10,6 +10,12 @@ public actor SOCKS5DeviceBridgeService {
 
     // Track connections by source IP
     private var activeConnections: [String: UUID] = [:]
+    // Track connection count per IP (to handle multiple TCP connections from same device)
+    private var connectionCounts: [String: Int] = [:]
+    // Track pending removal tasks (grace period before removing device)
+    private var removalTasks: [String: Task<Void, Never>] = [:]
+    // Grace period before removing device (30 seconds)
+    private let removalGracePeriod: Duration = .seconds(30)
 
     public init(
         socks5Repository: SOCKS5ServerRepository,
@@ -49,17 +55,47 @@ public actor SOCKS5DeviceBridgeService {
     private func handleSOCKS5Connection(_ socks5Connection: SOCKS5Connection) async {
         let sourceIP = socks5Connection.sourceIP
 
-        // Check if this is a new connection from this IP
-        if activeConnections[sourceIP] != nil {
-            // Update existing device's traffic stats
-            Logger.bridge.debug("Updating existing device connection: \(sourceIP)")
-            // Note: In a real implementation, you'd track per-connection stats
+        Logger.bridge.info("📥 Received SOCKS5 event: IP=\(sourceIP), state=\(String(describing: socks5Connection.state))")
+
+        // Check connection state
+        if socks5Connection.state == .closed {
+            // Decrement connection count for this IP
+            let count = (connectionCounts[sourceIP] ?? 1) - 1
+
+            Logger.bridge.info("📊 Connection count for \(sourceIP): \(connectionCounts[sourceIP] ?? 0) -> \(count)")
+
+            if count <= 0 {
+                // All connections closed, schedule removal after grace period
+                connectionCounts.removeValue(forKey: sourceIP)
+                scheduleDeviceRemoval(sourceIP: sourceIP)
+            } else {
+                // Still have active connections from this IP
+                connectionCounts[sourceIP] = count
+                Logger.bridge.debug("Connection closed from \(sourceIP), \(count) remaining")
+            }
+            return
+        }
+
+        // New or existing connection from this IP
+        if let existingDeviceId = activeConnections[sourceIP] {
+            // Cancel pending removal task (device reconnected)
+            if let removalTask = removalTasks[sourceIP] {
+                removalTask.cancel()
+                removalTasks.removeValue(forKey: sourceIP)
+                Logger.bridge.info("🔄 Device reconnected before removal: \(sourceIP)")
+            }
+
+            // Increment connection count for existing device
+            let newCount = (connectionCounts[sourceIP] ?? 0) + 1
+            connectionCounts[sourceIP] = newCount
+            Logger.bridge.info("📊 Additional connection from existing device: \(sourceIP), count: \(connectionCounts[sourceIP] ?? 0) -> \(newCount)")
         } else {
             // New device connection
             let deviceId = UUID()
             activeConnections[sourceIP] = deviceId
+            connectionCounts[sourceIP] = 1
 
-            // Create device connection in an isolated context
+            // Create device connection on MainActor
             await MainActor.run {
                 let deviceConnection = DeviceConnection(
                     id: deviceId,
@@ -75,7 +111,39 @@ public actor SOCKS5DeviceBridgeService {
                 }
             }
 
-            Logger.bridge.info("New device connected: \(sourceIP)")
+            Logger.bridge.info("✅ New device connected: \(sourceIP), count=1")
+        }
+    }
+
+    /// Schedule device removal after grace period
+    private func scheduleDeviceRemoval(sourceIP: String) {
+        // Cancel existing removal task if any
+        removalTasks[sourceIP]?.cancel()
+
+        // Schedule new removal task
+        removalTasks[sourceIP] = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                try await Task.sleep(for: removalGracePeriod)
+
+                // Grace period passed, remove device
+                await self.performDeviceRemoval(sourceIP: sourceIP)
+            } catch {
+                // Task was cancelled (device reconnected)
+                Logger.bridge.debug("⏹️ Device removal cancelled for \(sourceIP)")
+            }
+        }
+
+        Logger.bridge.info("⏱️ Scheduled removal for \(sourceIP) in \(removalGracePeriod.components.seconds)s")
+    }
+
+    /// Actually remove the device (called after grace period)
+    private func performDeviceRemoval(sourceIP: String) async {
+        if let deviceId = activeConnections.removeValue(forKey: sourceIP) {
+            await deviceMonitor.removeConnection(deviceId)
+            removalTasks.removeValue(forKey: sourceIP)
+            Logger.bridge.info("❌ Device disconnected after grace period: \(sourceIP)")
         }
     }
 

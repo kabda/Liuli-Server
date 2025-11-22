@@ -59,6 +59,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statisticsWindowCoordinator = statisticsCoordinator
         self.preferencesWindowCoordinator = preferencesCoordinator
 
+        // Auto-start bridge on app launch
+        Task {
+            let toggleBridgeUseCase = container.toggleBridgeUseCase
+            do {
+                try await toggleBridgeUseCase.enable()
+                Logger.service.info("Bridge auto-started on app launch")
+            } catch {
+                Logger.service.error("Failed to auto-start bridge: \(error.localizedDescription)")
+            }
+        }
+
         Logger.service.info("Liuli-Server application started")
     }
 

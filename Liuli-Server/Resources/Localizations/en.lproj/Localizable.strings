@@ -1,97 +1,80 @@
-/*
-  Localizable.strings (English)
-  Liuli-Server
+/* Dashboard */
+"dashboard.title" = "Liuli Server";
+"dashboard.refresh" = "Refresh";
+"dashboard.noDevices" = "No devices connected";
 
-  User-facing strings for Mac Bridge application
-*/
+/* Status Panel */
+"status.bridge" = "Bridge";
+"status.bridge.active" = "Active";
+"status.bridge.inactive" = "Inactive";
+"status.bridge.notListening" = "Not listening";
+"status.bridge.port" = "Port %d";
+"status.charles" = "Charles Proxy";
+"status.charles.unknown" = "Unknown";
+"status.charles.available" = "Available";
+"status.charles.unavailable" = "Unavailable";
 
-// MARK: - Service Status
-"service.status.stopped" = "Service Stopped";
-"service.status.starting" = "Starting...";
-"service.status.running" = "Service Running";
-"service.status.stopping" = "Stopping...";
-"service.status.error" = "Service Error";
+/* Menu Bar */
+"menuBar.title" = "Liuli Server";
+"menuBar.enableBridge" = "Enable Bridge";
+"menuBar.devicesConnected" = "%d device(s) connected";
+"menuBar.bridgeDisabled" = "Bridge disabled";
+"menuBar.showMainWindow" = "Show Main Window";
+"menuBar.settings" = "Settings...";
+"menuBar.quit" = "Quit";
 
-// MARK: - Menu Actions
-"menu.startService" = "Start Service";
-"menu.stopService" = "Stop Service";
-"menu.openCharles" = "Open Charles Proxy";
-"menu.viewStatistics" = "View Statistics";
-"menu.preferences" = "Preferences";
-"menu.quit" = "Quit";
+/* Device List */
+"deviceList.name" = "Device Name";
+"deviceList.connectedAt" = "Connected At";
+"deviceList.status" = "Status";
+"deviceList.traffic" = "Traffic";
+"deviceList.emptyState" = "No devices connected. Enable the bridge to accept connections.";
 
-// MARK: - Notifications
-"notification.serviceStarted" = "Service Running";
-"notification.serviceStartedBody" = "SOCKS5 proxy is now accepting connections";
-"notification.serviceStopped" = "Service Stopped";
-"notification.serviceStoppedBody" = "SOCKS5 proxy has been stopped";
-"notification.charlesNotDetected" = "Charles not detected";
-"notification.charlesNotDetectedBody" = "Charles Proxy is not running. Please start Charles to capture traffic.";
-"notification.deviceConnected" = "iOS device connected";
-"notification.deviceConnectedBody" = "%@ has connected to the proxy";
-"notification.charlesUnreachable" = "Charles Proxy not reachable";
+/* Settings */
+"settings.title" = "Settings";
+"settings.charlesProxy" = "Charles Proxy";
+"settings.charlesHost" = "Host:";
+"settings.charlesPort" = "Port:";
+"settings.behavior" = "Behavior";
+"settings.autoStartBridge" = "Auto-start bridge on launch";
+"settings.showMenuBarIcon" = "Show menu bar icon";
+"settings.showMainWindowOnLaunch" = "Show main window on launch";
+"settings.save" = "Save";
+"settings.cancel" = "Cancel";
+"settings.portError" = "Port must be between 1 and 65535";
+"settings.loadError" = "Failed to load settings";
+"settings.saveError" = "Failed to save settings";
 
-// MARK: - Errors
-"error.portInUse" = "Port already in use";
-"error.portInUse.message" = "The configured port %d is already in use by another application. Please change the port in Preferences.";
-"error.charlesNotFound" = "Charles Proxy not found";
-"error.charlesNotFound.message" = "Charles Proxy is not installed on this Mac. Please install Charles from www.charlesproxy.com";
-"error.networkInterfaceUnavailable" = "Network interface unavailable";
-"error.bonjourFailed" = "Bonjour registration failed";
-"error.serviceStartFailed" = "Failed to start service";
-"error.dismiss" = "Dismiss";
-
-// MARK: - Error Recovery Actions
-"error.action.retry" = "Retry";
-"error.action.restartService" = "Restart Service";
-"error.action.checkCharles" = "Check Charles Proxy";
-"error.action.openPreferences" = "Open Preferences";
-"error.action.viewLogs" = "View Logs";
-"error.action.contactSupport" = "Contact Support";
-
-// MARK: - Actions
-"action.changePort" = "Change Port";
-"action.launchCharles" = "Launch Charles";
-"action.restartService" = "Restart Service";
-"action.cancel" = "Cancel";
-"action.ok" = "OK";
-
-// MARK: - Statistics Window
-"statistics.title" = "Connection Statistics";
-"statistics.totalConnections" = "Total Connections";
-"statistics.activeConnections" = "Active Connections";
-"statistics.totalBytes" = "Total Bytes";
-"statistics.uptime" = "Uptime";
-"statistics.connectedAt" = "Connected at %@";
-"statistics.bytesSent" = "Sent: %@";
-"statistics.connectedDevices" = "Connected Devices";
-"statistics.bytesTransferred" = "Bytes Transferred";
-"statistics.currentThroughput" = "Current Throughput";
-"statistics.connectionDuration" = "Duration";
-"statistics.noDevices" = "No devices connected";
-
-// MARK: - Preferences
+/* Preferences */
 "preferences.title" = "Preferences";
-"preferences.general" = "General";
-"preferences.network" = "Network";
-"preferences.advanced" = "Advanced";
-"preferences.section.network" = "Network Configuration";
+"preferences.section.network" = "Network Settings";
 "preferences.section.charles" = "Charles Proxy";
 "preferences.section.advanced" = "Advanced Settings";
 "preferences.socks5Port" = "SOCKS5 Port";
-"preferences.portRange" = "(1024-65535)";
+"preferences.portRange" = "Port range: 1-65535";
 "preferences.bonjourServiceName" = "Bonjour Service Name";
-"preferences.charlesProxyHost" = "Charles Host";
-"preferences.charlesProxyPort" = "Charles HTTP Port";
-"preferences.charlesSSLProxyPort" = "Charles HTTPS Port";
+"preferences.charlesProxyHost" = "Charles Proxy Host";
+"preferences.charlesProxyPort" = "Charles Proxy Port";
+"preferences.charlesSSLProxyPort" = "Charles SSL Proxy Port";
 "preferences.maxRetries" = "Max Retries";
 "preferences.connectionTimeout" = "Connection Timeout";
-"preferences.charlesAddress" = "Charles Proxy Address";
-"preferences.autoStartOnLogin" = "Launch at login";
-"preferences.autoLaunchCharles" = "Launch Charles automatically";
-"preferences.notifications" = "Show notifications";
-"preferences.save" = "Save";
-"preferences.cancel" = "Cancel";
 "preferences.resetDefaults" = "Reset to Defaults";
-"preferences.savedSuccessfully" = "Preferences Saved";
+"preferences.cancel" = "Cancel";
+"preferences.save" = "Save";
 
+/* Connection Status */
+"connection.status.active" = "Active";
+"connection.status.disconnected" = "Disconnected";
+
+/* Errors */
+"error.unknown" = "An unknown error occurred";
+"error.bridgeStart" = "Failed to start bridge";
+"error.bridgeStop" = "Failed to stop bridge";
+"error.charlesNotFound" = "Charles Proxy not found";
+"error.portInUse" = "Port is already in use";
+
+/* General */
+"general.ok" = "OK";
+"general.cancel" = "Cancel";
+"general.save" = "Save";
+"general.close" = "Close";

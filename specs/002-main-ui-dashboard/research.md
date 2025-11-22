@@ -1,0 +1,527 @@
+# Research & Technical Decisions
+
+**Feature**: Main UI Dashboard and Menu Bar Interface
+**Date**: 2025-11-22
+**Status**: Complete
+
+## Overview
+
+This document captures technical research and decisions made during the planning phase for the UI dashboard and menu bar interface feature.
+
+## Key Technical Decisions
+
+### 1. Menu Bar Integration Approach
+
+**Decision**: Use NSStatusBar with SwiftUI menu content via `.menuBarExtra()` modifier
+
+**Rationale**:
+- Native SwiftUI support in macOS 14+ via `.menuBarExtra()` modifier
+- Automatic dark/light mode adaptation for menu bar icon
+- Built-in menu lifecycle management
+- Clean integration with SwiftUI declarative syntax
+- Avoids AppKit bridging complexity
+
+**Alternatives Considered**:
+- **NSStatusItem + NSPopover**: More control but requires AppKit bridging, complex lifecycle
+- **Third-party libraries**: Unnecessary complexity, adds dependencies
+
+**Implementation Notes**:
+- Use SF Symbols for menu bar icon (system.cable.connection or similar)
+- MenuBarViewModel manages menu state (@MainActor @Observable)
+- Menu content renders standard SwiftUI views
+- Icon updates automatically based on bridge status (visual feedback)
+
+**References**:
+- Apple docs: https://developer.apple.com/documentation/swiftui/menub
+
+arextra
+- HIG Menu Bar Extras: https://developer.apple.com/design/human-interface-guidelines/menu-bar-extras
+
+---
+
+### 2. Charles Proxy Availability Checking Strategy
+
+**Decision**: Implement HTTP CONNECT probe using URLSession with custom timeout
+
+**Rationale**:
+- Verified during clarification (spec requirement FR-005)
+- More reliable than port scanning (distinguishes proxy from other services)
+- Standard HTTP proxy protocol (RFC 7231)
+- URLSession provides async/await support, timeout control, error handling
+- Can detect Charles vs other proxies on same port
+
+**Alternatives Considered**:
+- **Port scanning only**: Fast but prone to false positives (other services on 8888)
+- **Process detection**: Fragile (requires specific process names), platform-specific
+
+**Implementation Details**:
+```swift
+// CharlesProxyRepositoryImpl (actor)
+func checkAvailability() async -> CharlesStatus {
+    let proxyURL = URL(string: "http://\(host):\(port)")!
+    var request = URLRequest(url: URL(string: "http://captive.apple.com")!)
+    request.httpMethod = "CONNECT"
+    request.timeoutInterval = 2.0
+
+    do {
+        let (_, response) = try await session.data(for: request)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+            ? .available : .unavailable
+    } catch {
+        return .unavailable
+    }
+}
+```
+
+**Performance**:
+- Timeout: 2 seconds (balances responsiveness and reliability)
+- Polling interval: 5-10 seconds (configurable, default 5s)
+- Background async task (doesn't block UI)
+
+**References**:
+- RFC 7231 CONNECT: https://datatracker.ietf.org/doc/html/rfc7231#section-4.3.6
+- URLSession async/await: https://developer.apple.com/documentation/foundation/urlsession
+
+---
+
+### 3. Device Connection Tracking Architecture
+
+**Decision**: Use in-memory AsyncStream-based repository with connection lifecycle management
+
+**Rationale**:
+- Devices are transient (no persistence needed per FR-015)
+- AsyncStream provides reactive updates (perfect for real-time UI)
+- Actor-based repository ensures thread-safety for concurrent connections
+- Clean separation: Domain defines protocol, Data implements tracking logic
+- Low memory overhead (only active connections stored)
+
+**Alternatives Considered**:
+- **SwiftData persistence**: Unnecessary (devices removed on disconnect), adds complexity
+- **Combine publishers**: AsyncStream is newer, integrates better with async/await
+- **NotificationCenter**: Harder to manage lifecycle, less type-safe
+
+**Implementation Pattern**:
+```swift
+// Domain/Protocols/DeviceMonitorRepository.swift
+protocol DeviceMonitorRepository: Sendable {
+    func observeConnections() -> AsyncStream<[DeviceConnection]>
+    func addConnection(_ device: DeviceConnection) async
+    func removeConnection(_ deviceId: UUID) async
+}
+
+// Data/Repositories/DeviceMonitorRepositoryImpl.swift
+actor DeviceMonitorRepositoryImpl: DeviceMonitorRepository {
+    private var connections: [UUID: DeviceConnection] = [:]
+    private var continuation: AsyncStream<[DeviceConnection]>.Continuation?
+
+    func observeConnections() -> AsyncStream<[DeviceConnection]> {
+        AsyncStream { continuation in
+            self.continuation = continuation
+            // Emit initial state
+        }
+    }
+}
+```
+
+**Performance Considerations**:
+- O(1) add/remove operations (dictionary-based)
+- Single continuation (one subscriber per repository instance)
+- Memory: ~100-200 bytes per connection × 10 connections = ~2KB
+
+---
+
+### 4. State Management Pattern
+
+**Decision**: Use SwiftUI @Observable macro with value-type state structs
+
+**Rationale**:
+- @Observable is the modern Swift 5.9+ approach (replaces ObservableObject)
+- Fine-grained observation (only affected views re-render)
+- Value-type state ensures immutability and Sendable conformance
+- Action-based state updates (clear intent, easier testing)
+- Aligns with Swift 6 concurrency model
+
+**Alternatives Considered**:
+- **ObservableObject + @Published**: Older pattern, coarser observation granularity
+- **TCA (The Composable Architecture)**: Overkill for this feature scope, steep learning curve
+- **Custom Combine**: More boilerplate, @Observable handles it
+
+**Pattern**:
+```swift
+// Presentation/ViewModels/DashboardViewModel.swift
+struct DashboardState: Sendable, Equatable {
+    var devices: [DeviceConnection] = []
+    var networkStatus: NetworkStatus = .inactive
+    var charlesStatus: CharlesStatus = .unknown
+    var isLoading: Bool = false
+}
+
+enum DashboardAction {
+    case onAppear
+    case refresh
+    case selectDevice(UUID)
+}
+
+@MainActor
+@Observable
+final class DashboardViewModel {
+    private(set) var state = DashboardState()
+
+    private let monitorDevicesUseCase: MonitorDeviceConnectionsUseCase
+    private let monitorNetworkUseCase: MonitorNetworkStatusUseCase
+    // ... other use cases
+
+    init(monitorDevicesUseCase: MonitorDeviceConnectionsUseCase, ...) {
+        self.monitorDevicesUseCase = monitorDevicesUseCase
+        // ...
+    }
+
+    func send(_ action: DashboardAction) {
+        // Handle action, update state
+    }
+}
+```
+
+**Benefits**:
+- Testable (inject mock use cases, assert state changes)
+- Predictable (action → state transition)
+- Type-safe (enums for actions)
+- Sendable (value-type state crosses actor boundaries safely)
+
+**References**:
+- @Observable macro: https://developer.apple.com/documentation/observation/observable()
+- Swift Evolution SE-0395: https://github.com/apple/swift-evolution/blob/main/proposals/0395-observability.md
+
+---
+
+### 5. Traffic Statistics Display
+
+**Decision**: Use ByteCountFormatter for human-readable byte counts (KB, MB, GB)
+
+**Rationale**:
+- System-provided formatter (localized, follows user preferences)
+- Automatically selects appropriate unit (1.2 MB vs 1,234,567 bytes)
+- Zero-width formatting option for alignment in tables
+- Cumulative totals per clarification (no real-time rate calculation needed)
+
+**Implementation**:
+```swift
+// Shared/Extensions/ByteCountFormatter+Extensions.swift
+extension ByteCountFormatter {
+    static let trafficFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useAll]
+        formatter.countStyle = .file  // Uses KB, MB, GB (decimal)
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter
+    }()
+}
+
+// Usage in DeviceRowView
+Text(ByteCountFormatter.trafficFormatter.string(fromByteCount: device.bytesSent))
+```
+
+**Alternatives Considered**:
+- **Manual formatting**: Error-prone, not localized
+- **MeasurementFormatter**: Overkill (designed for scientific units)
+
+---
+
+### 6. Bridge State Persistence
+
+**Decision**: Use UserDefaults for bridge on/off state, with launch-time crash detection
+
+**Rationale**:
+- Bridge state is simple boolean (no complex object graph)
+- UserDefaults provides atomic writes, synchronization
+- Crash detection via "clean shutdown" flag pattern
+- Fast read/write (no async overhead for boolean)
+- No need for SwiftData/encryption (non-sensitive data)
+
+**Implementation**:
+```swift
+// Data/Repositories/SettingsRepositoryImpl.swift
+actor SettingsRepositoryImpl: SettingsRepository {
+    private let defaults = UserDefaults.standard
+    private let bridgeStateKey = "bridgeEnabled"
+    private let cleanShutdownKey = "cleanShutdown"
+
+    func saveBridgeState(_ enabled: Bool) async {
+        defaults.set(enabled, forKey: bridgeStateKey)
+        defaults.synchronize()
+    }
+
+    func loadBridgeState() async -> Bool {
+        let wasCleanShutdown = defaults.bool(forKey: cleanShutdownKey)
+        defaults.set(false, forKey: cleanShutdownKey)  // Mark as running
+
+        if wasCleanShutdown {
+            return defaults.bool(forKey: bridgeStateKey)
+        } else {
+            // Crash/force-quit detected → disable bridge (FR-012)
+            defaults.set(false, forKey: bridgeStateKey)
+            return false
+        }
+    }
+
+    func markCleanShutdown() async {
+        defaults.set(true, forKey: cleanShutdownKey)
+        defaults.synchronize()
+    }
+}
+```
+
+**Crash Detection Logic**:
+1. On launch: Check `cleanShutdown` flag
+   - `true` → normal shutdown, restore bridge state
+   - `false` → abnormal termination, disable bridge
+2. On quit: Set `cleanShutdown = true`
+3. On launch: Set `cleanShutdown = false` (running state)
+
+**Alternatives Considered**:
+- **SwiftData**: Overkill for single boolean, adds query overhead
+- **File-based**: More complex, no benefit over UserDefaults
+
+---
+
+### 7. Automatic UI Updates
+
+**Decision**: Combine AsyncStream observation with @Observable state updates
+
+**Rationale**:
+- Use cases emit AsyncStream updates (devices, network, Charles status)
+- ViewModels consume streams in async tasks
+- @Observable ensures SwiftUI views re-render on state changes
+- Task lifecycle tied to view lifecycle (automatic cancellation)
+
+**Pattern**:
+```swift
+@MainActor
+@Observable
+final class DashboardViewModel {
+    // ...
+
+    private var updateTask: Task<Void, Never>?
+
+    func send(_ action: DashboardAction) {
+        switch action {
+        case .onAppear:
+            startMonitoring()
+        case .onDisappear:
+            stopMonitoring()
+        // ...
+        }
+    }
+
+    private func startMonitoring() {
+        updateTask = Task {
+            await withTaskGroup(of: Void.self) { group in
+                // Stream 1: Device connections
+                group.addTask {
+                    for await devices in self.monitorDevicesUseCase.execute() {
+                        self.state.devices = devices
+                    }
+                }
+
+                // Stream 2: Network status
+                group.addTask {
+                    for await status in self.monitorNetworkUseCase.execute() {
+                        self.state.networkStatus = status
+                    }
+                }
+
+                // Stream 3: Charles status (polled every 5s)
+                group.addTask {
+                    for await status in self.checkCharlesUseCase.execute() {
+                        self.state.charlesStatus = status
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopMonitoring() {
+        updateTask?.cancel()
+        updateTask = nil
+    }
+}
+```
+
+**Benefits**:
+- Automatic cancellation (Task tied to view lifecycle)
+- Structured concurrency (TaskGroup waits for all streams)
+- No manual Combine subscriptions
+- FR-004 satisfied (automatic updates without refresh)
+
+---
+
+### 8. Settings Window Architecture
+
+**Decision**: Use standard SwiftUI Form with UserDefaults-backed @AppStorage
+
+**Rationale**:
+- Settings are simple key-value pairs (Charles host/port, auto-start)
+- @AppStorage provides two-way binding to UserDefaults
+- Form provides native macOS settings UI (grouped controls, labels)
+- No custom persistence logic needed
+
+**Implementation**:
+```swift
+struct SettingsView: View {
+    @AppStorage("charlesHost") private var charlesHost = "localhost"
+    @AppStorage("charlesPort") private var charlesPort = 8888
+    @AppStorage("autoStartBridge") private var autoStartBridge = false
+
+    var body: some View {
+        Form {
+            Section("Charles Proxy") {
+                TextField("Host", text: $charlesHost)
+                TextField("Port", value: $charlesPort, format: .number)
+            }
+
+            Section("Behavior") {
+                Toggle("Auto-start bridge on launch", isOn: $autoStartBridge)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 400, height: 300)
+    }
+}
+```
+
+**Alternatives Considered**:
+- **SwiftData**: Unnecessary (settings are flat key-value, not relational)
+- **Custom ViewModel**: @AppStorage handles it, less boilerplate
+
+---
+
+## Integration Points
+
+### Existing Codebase Integration
+
+**Bridge Connection Tracking**:
+- Assumes existing bridge implementation provides connection events (connect/disconnect)
+- DeviceMonitorRepositoryImpl will observe bridge events (exact API TBD during implementation)
+- If bridge doesn't expose events, add observer pattern or delegate callbacks
+
+**Network Service Reuse**:
+- Existing `NetworkServices/` may have socket or HTTP services
+- Charles availability checking uses Foundation URLSession (standalone, no bridge dependency)
+- If bridge exposes listening port/status, integrate via NetworkStatusRepository protocol
+
+**Logger Integration**:
+- Reuse existing `Shared/Services/Logger` for status change logging
+- Log device connect/disconnect, bridge toggle, Charles availability checking failures
+- No traffic content logging (privacy requirement)
+
+---
+
+## Performance Validation Strategy
+
+### Measurement Approach
+
+1. **UI Responsiveness (SC-001, SC-007)**:
+   - Use Xcode Instruments: Time Profiler for rendering hotspots
+   - Measure time from menu bar click to menu display (<0.5s)
+   - Measure time from window open to device list render (<1s)
+
+2. **Status Update Latency (SC-002, SC-013)**:
+   - Manual testing: Start/stop Charles, measure UI update time
+   - Target: <3 seconds for status change reflection
+   - Verify polling interval (5-10s) doesn't cause UI lag
+
+3. **Memory Footprint (Constraints)**:
+   - Instruments: Allocations, Leaks
+   - Baseline: <100MB with 0 connections
+   - Load test: <150MB with 10 concurrent connections
+   - Check for AsyncStream/Task leaks (continuation cleanup)
+
+4. **Concurrent Connections (SC-004)**:
+   - Simulate 10+ device connections (mock repository or test harness)
+   - Verify list rendering performance (no dropped frames)
+   - Monitor actor contention (DeviceMonitorRepositoryImpl should be fast)
+
+### Acceptance Criteria
+
+- All SC-001 to SC-007 verified with test data
+- Zero memory leaks (Instruments verification)
+- Zero Swift concurrency warnings
+- Zero compiler warnings
+
+---
+
+## Risk Mitigation
+
+### Identified Risks
+
+1. **Risk**: Bridge implementation doesn't expose connection events
+   - **Mitigation**: Add observer protocol to bridge, implement adapter
+   - **Fallback**: Poll bridge state (less efficient but functional)
+
+2. **Risk**: Charles availability checking false positives (other proxies on 8888)
+   - **Mitigation**: CONNECT probe validates proxy behavior (not just port)
+   - **Fallback**: Add user override in settings ("Ignore detection")
+
+3. **Risk**: AsyncStream memory leaks if continuation not cleaned up
+   - **Mitigation**: Use `Task.cancel()` on view disappear, test with Instruments
+   - **Fallback**: Switch to Combine publishers (more mature, well-tested)
+
+4. **Risk**: Menu bar icon doesn't adapt to dark/light mode
+   - **Mitigation**: Use SF Symbols with template rendering mode
+   - **Fallback**: Provide custom asset with appearance variants
+
+---
+
+## Open Questions (for Implementation Phase)
+
+1. **Bridge Event API**: What is the exact interface for observing connection events?
+   - **Action**: Review bridge implementation during Domain layer design
+   - **Owner**: Implementation team
+
+2. **Device Identifier Format**: What format does iOS client send? (UUID, name, IP?)
+   - **Action**: Check bridge protocol or iOS client code
+   - **Owner**: Implementation team
+
+3. **Icon Selection**: Which SF Symbol best represents "network bridge"?
+   - **Action**: Review HIG, test in menu bar
+   - **Owner**: UI implementation
+
+4. **Localization Scope**: Chinese + English only, or more languages?
+   - **Action**: Confirm with stakeholders
+   - **Owner**: Product (assume zh-Hans + en for now)
+
+---
+
+## References
+
+### Apple Documentation
+- SwiftUI MenuBarExtra: https://developer.apple.com/documentation/swiftui/menubarextra
+- @Observable macro: https://developer.apple.com/documentation/observation/observable()
+- NSStatusBar: https://developer.apple.com/documentation/appkit/nsstatusbar
+- AsyncStream: https://developer.apple.com/documentation/swift/asyncstream
+- ByteCountFormatter: https://developer.apple.com/documentation/foundation/bytecountformatter
+
+### Design Guidelines
+- HIG Menu Bar Extras: https://developer.apple.com/design/human-interface-guidelines/menu-bar-extras
+- HIG Status Bars: https://developer.apple.com/design/human-interface-guidelines/status-bars
+
+### Swift Evolution
+- SE-0395 Observability: https://github.com/apple/swift-evolution/blob/main/proposals/0395-observability.md
+- SE-0296 Async/Await: https://github.com/apple/swift-evolution/blob/main/proposals/0296-async-await.md
+
+### RFCs
+- RFC 7231 HTTP CONNECT: https://datatracker.ietf.org/doc/html/rfc7231#section-4.3.6
+
+---
+
+## Conclusion
+
+All technical unknowns resolved. Architecture decisions align with:
+- ✅ Clean MVVM (Domain ← Data, Presentation → Domain)
+- ✅ Swift 6 concurrency (@MainActor ViewModels, actor repositories, AsyncStream)
+- ✅ Constructor injection (use cases injected via init())
+- ✅ Performance targets (measured, testable)
+- ✅ Specification requirements (FR-001 to FR-017, SC-001 to SC-007)
+
+**Status**: ✅ **READY FOR PHASE 1 (Data Model & Contracts)**

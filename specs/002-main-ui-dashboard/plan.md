@@ -1,0 +1,147 @@
+# Implementation Plan: Main UI Dashboard and Menu Bar Interface
+
+**Branch**: `002-main-ui-dashboard` | **Date**: 2025-11-22 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/002-main-ui-dashboard/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+
+## Summary
+
+Add a comprehensive UI dashboard and menu bar interface for Liuli-Server to display real-time network status, Charles proxy availability, and connected iOS device monitoring. The implementation follows Clean MVVM architecture with SwiftUI for the presentation layer, providing menu bar-first experience with on-demand main window access.
+
+## Technical Context
+
+**Language/Version**: Swift 6.0+ (strict concurrency enabled)
+**Primary Dependencies**: SwiftUI, SwiftData (for persistence), Foundation (URLSession for Charles availability checking), AppKit (NSStatusBar for menu bar)
+**Storage**: SwiftData for settings persistence, UserDefaults for bridge state, connection tracking in-memory
+**Testing**: XCTest (unit + integration tests)
+**Target Platform**: macOS 14.0+
+**Project Type**: Single macOS application (existing codebase)
+**Performance Goals**:
+- UI response < 100ms
+- Status update latency < 3 seconds
+- Menu bar menu open < 0.5 seconds
+- Support 10+ concurrent device connections without degradation
+**Constraints**:
+- Zero Swift 6 concurrency warnings
+- 100% constructor injection
+- Memory < 100MB baseline, < 150MB with 10 connections
+- Launch time < 2 seconds
+**Scale/Scope**:
+- 4 user stories (2 P1, 1 P2, 1 P3)
+- ~8-12 SwiftUI views
+- ~5-7 ViewModels
+- ~3-4 domain use cases
+- ~2-3 repository implementations
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+### Pre-Phase 0 Check
+
+| Rule | Status | Notes |
+|------|--------|-------|
+| **Clean MVVM** | ✅ PASS | Feature adds to existing App→Presentation→Domain←Data structure |
+| **Constructor Injection** | ✅ PASS | All ViewModels will receive use cases via init() |
+| **Swift 6 Concurrency** | ✅ PASS | ViewModels @MainActor, repos as actor, status polling via async/await |
+| **Test Coverage** | ⚠️ DEFERRED | Will be verified during implementation (Domain≥100%, Data≥90%, Presentation≥90%, Views≥70%) |
+| **Zero Warnings** | ⚠️ DEFERRED | Will be verified during implementation |
+| **Spec-Driven** | ✅ PASS | User stories prioritized (P1-P3), FR-001 to FR-017 defined |
+| **Security & Privacy** | ✅ PASS | Charles config in UserDefaults, no traffic content logging, local network only |
+| **Performance Standards** | ✅ PASS | Targets defined in spec (SC-001 to SC-007) |
+
+**Decision**: ✅ **PROCEED TO PHASE 0** - All gates passed or appropriately deferred to implementation phase
+
+### Complexity Justification
+
+No violations requiring justification. Feature integrates cleanly into existing architecture.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/002-main-ui-dashboard/
+├── spec.md              # Feature specification
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (technical decisions)
+├── data-model.md        # Phase 1 output (entities and state)
+├── quickstart.md        # Phase 1 output (developer guide)
+├── contracts/           # Phase 1 output (not applicable for UI-only feature)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+```
+
+### Source Code (repository root)
+
+```text
+Liuli-Server/
+├── App/
+│   ├── Liuli_ServerApp.swift           # App entry point
+│   └── DependencyContainer.swift        # DI container (UPDATE: inject new use cases)
+│
+├── Domain/
+│   ├── Entities/
+│   │   ├── DeviceConnection.swift       # NEW: Device connection entity
+│   │   ├── NetworkStatus.swift          # NEW: Network bridge status entity
+│   │   ├── CharlesStatus.swift          # NEW: Charles proxy status entity
+│   │   └── ApplicationSettings.swift    # NEW: App settings entity
+│   ├── Protocols/
+│   │   ├── DeviceMonitorRepository.swift      # NEW: Device tracking protocol
+│   │   ├── NetworkStatusRepository.swift      # NEW: Network status protocol
+│   │   ├── CharlesProxyRepository.swift       # NEW: Charles availability checking protocol
+│   │   └── SettingsRepository.swift           # NEW: Settings persistence protocol
+│   ├── UseCases/
+│   │   ├── MonitorDeviceConnectionsUseCase.swift  # NEW: Stream device updates
+│   │   ├── MonitorNetworkStatusUseCase.swift      # NEW: Stream network status
+│   │   ├── CheckCharlesAvailabilityUseCase.swift  # NEW: Poll Charles status
+│   │   ├── ToggleBridgeUseCase.swift              # NEW: Enable/disable bridge
+│   │   └── ManageSettingsUseCase.swift            # NEW: Load/save settings
+│   └── ValueObjects/                   # (existing, may add TrafficStatistics)
+│
+├── Data/
+│   ├── Repositories/
+│   │   ├── DeviceMonitorRepositoryImpl.swift    # NEW: actor, tracks connections
+│   │   ├── NetworkStatusRepositoryImpl.swift    # NEW: actor, monitors bridge
+│   │   ├── CharlesProxyRepositoryImpl.swift     # NEW: actor, probes Charles
+│   │   └── SettingsRepositoryImpl.swift         # NEW: actor, SwiftData/UserDefaults
+│   ├── NetworkServices/                # (existing HTTP/socket services)
+│   └── DataSources/                    # (existing, may add SwiftData models)
+│
+├── Presentation/
+│   ├── ViewModels/
+│   │   ├── DashboardViewModel.swift            # NEW: Main window state
+│   │   ├── DeviceListViewModel.swift           # OPTIONAL: Device list state (may be skipped if DashboardViewModel suffices)
+│   │   ├── StatusPanelViewModel.swift          # NEW: Status indicators state
+│   │   ├── MenuBarViewModel.swift              # NEW: Menu bar menu state
+│   │   └── SettingsViewModel.swift             # NEW: Settings window state
+│   ├── Views/
+│   │   ├── DashboardView.swift                 # NEW: Main window
+│   │   ├── DeviceListView.swift                # NEW: Device table
+│   │   ├── StatusPanelView.swift               # NEW: Network/Charles status
+│   │   ├── MenuBarView.swift                   # NEW: Menu bar content
+│   │   ├── SettingsView.swift                  # NEW: Settings window
+│   │   └── Components/
+│   │       ├── StatusIndicatorView.swift       # NEW: Reusable status badge
+│   │       ├── DeviceRowView.swift             # NEW: Device list row
+│   │       └── MenuBarIconView.swift           # NEW: Menu bar icon rendering
+│   └── State/                          # (existing, if state management helpers needed)
+│
+├── Resources/
+│   ├── Assets.xcassets/                # (UPDATE: add menu bar icons, status icons)
+│   └── Localizations/                  # (UPDATE: add UI strings)
+│
+└── Shared/
+    ├── Extensions/                     # (may add ByteCountFormatter helpers)
+    ├── Services/                       # (existing, reuse logger)
+    └── Utilities/                      # (may add date formatting helpers)
+
+Tests structure mirrors source (unit tests for ViewModels, UseCases, Repositories)
+```
+
+**Structure Decision**: Extends existing Clean MVVM architecture with new UI layer components. All new code follows established patterns (actor repositories, @MainActor ViewModels, constructor injection via DependencyContainer).
+
+## Complexity Tracking
+
+No violations requiring justification.
+

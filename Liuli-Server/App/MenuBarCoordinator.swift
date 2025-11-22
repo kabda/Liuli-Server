@@ -16,16 +16,20 @@ public final class MenuBarCoordinator {
         // Create status item in menu bar
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
+        // Store reference first
+        self.statusItem = statusItem
+
         if let button = statusItem.button {
-            button.title = "" // Will be replaced with icon
             button.action = #selector(togglePopover)
             button.target = self
 
             // Set initial icon based on state
-            updateIcon(for: viewModel.state.serviceState)
-        }
+            updateIcon(isEnabled: viewModel.state.isBridgeEnabled)
 
-        self.statusItem = statusItem
+            print("✅ MenuBarCoordinator: Status bar icon set up with title: '\(button.title)'")
+        } else {
+            print("❌ MenuBarCoordinator: Failed to get status bar button")
+        }
 
         // Create popover
         let popover = NSPopover()
@@ -52,23 +56,23 @@ public final class MenuBarCoordinator {
     }
 
     private func observeStateChanges() {
-        // TODO: Observe viewModel.state changes and update icon
+        // TODO: Phase 7 - Observe viewModel.state changes and update icon
         // For now, this is a placeholder
     }
 
-    private func updateIcon(for state: ServiceState) {
-        guard let button = statusItem?.button else { return }
+    private func updateIcon(isEnabled: Bool) {
+        guard let button = statusItem?.button else {
+            print("❌ MenuBarCoordinator: No button available")
+            return
+        }
 
-        // TODO: Load actual icon assets from Resources/Assets.xcassets
-        // For now, use text-based indicator (FR-025: gray/blue/green/yellow/red)
-        let iconMap: [ServiceState: String] = [
-            .idle: "⚪️",      // gray
-            .starting: "🔵",   // blue
-            .running: "🟢",    // green
-            .stopping: "🔵",   // blue
-            .error: "🔴"       // red
-        ]
+        // Use clear, visible text
+        button.image = nil
+        button.title = "LS"  // Liuli Server - simple and always visible
+        button.font = NSFont.systemFont(ofSize: 13, weight: .medium)
 
-        button.title = iconMap[state] ?? "⚪️"
+        print("✅ MenuBarCoordinator: Set icon to 'LS' - isEnabled: \(isEnabled)")
+        print("   Button frame: \(button.frame)")
+        print("   Button isHidden: \(button.isHidden)")
     }
 }

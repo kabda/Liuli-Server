@@ -216,3 +216,10 @@ Before committing code, verify:
 - [ ] Architecture guidelines followed
 
 **Full checklist and rationale**: See `.specify/memory/constitution.md`
+
+## Active Technologies
+- Swift 6.0+ (strict concurrency enabled) + SwiftUI, SwiftData (for persistence), Foundation (URLSession for Charles detection), AppKit (NSStatusBar for menu bar) (002-main-ui-dashboard)
+- SwiftData for settings persistence, UserDefaults for bridge state, connection tracking in-memory (002-main-ui-dashboard)
+
+## Recent Changes
+- 002-main-ui-dashboard: Added Swift 6.0+ (strict concurrency enabled) + SwiftUI, SwiftData (for persistence), Foundation (URLSession for Charles detection), AppKit (NSStatusBar for menu bar)

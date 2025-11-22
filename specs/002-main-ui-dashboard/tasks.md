@@ -1,0 +1,552 @@
+# Implementation Tasks: Main UI Dashboard and Menu Bar Interface
+
+**Feature Branch**: `002-main-ui-dashboard`
+**Created**: 2025-11-22
+**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Data Model**: [data-model.md](./data-model.md)
+
+## Overview
+
+This document breaks down the UI Dashboard feature into executable tasks organized by user story. Each phase represents an independently testable increment that delivers value.
+
+**Total User Stories**: 4 (2× P1, 1× P2, 1× P3)
+**Estimated Tasks**: ~45-50 tasks
+**Suggested MVP**: Phase 3 (User Story 1 - Device Monitoring)
+
+---
+
+## Implementation Strategy
+
+### Incremental Delivery Approach
+
+1. **Phase 1-2**: Setup foundations (all stories depend on these)
+2. **Phase 3 (US1)**: MVP - Device list monitoring (core value, P1)
+3. **Phase 4 (US2)**: Status monitoring (enhances diagnostics, P1)
+4. **Phase 5 (US3)**: Menu bar control (convenience, P2)
+5. **Phase 6 (US4)**: Settings window (customization, P3)
+6. **Phase 7**: Polish & final integration
+
+### Parallel Execution Opportunities
+
+Within each phase, tasks marked `[P]` can be executed in parallel (different files, no dependencies).
+
+---
+
+## Phase 1: Setup & Infrastructure
+
+**Goal**: Initialize project dependencies and verify build configuration
+
+**Duration**: 1-2 hours
+
+### Tasks
+
+- [ ] T001 Verify Xcode project configuration (Swift 6.0+, macOS 14.0+ target, strict concurrency enabled)
+- [ ] T002 Add SF Symbols asset references to Resources/Assets.xcassets/ (network icon, status indicators)
+- [ ] T003 Create localization string files in Resources/Localizations/ (en.lproj, zh-Hans.lproj)
+- [ ] T004 Verify DependencyContainer.swift exists in App/ layer (for constructor injection pattern)
+
+**Validation**:
+```bash
+xcodebuild -project Liuli-Server.xcodeproj -scheme Liuli-Server clean build
+# Expected: Build succeeds with zero warnings
+```
+
+---
+
+## Phase 2: Domain Foundation (Blocking Prerequisites)
+
+**Goal**: Establish domain entities, repository protocols, and use cases that all user stories depend on
+
+**Duration**: 5-7 hours
+
+**Independent Test**: All domain components compile with zero concurrency warnings and conform to Sendable protocol
+
+### Domain Entities
+
+- [ ] T005 [P] Create DeviceConnection entity in Domain/Entities/DeviceConnection.swift
+- [ ] T006 [P] Create NetworkStatus entity in Domain/Entities/NetworkStatus.swift
+- [ ] T007 [P] Create CharlesStatus entity in Domain/Entities/CharlesStatus.swift
+- [ ] T008 [P] Create ApplicationSettings entity in Domain/Entities/ApplicationSettings.swift
+
+### Repository Protocols
+
+- [ ] T009 [P] Define DeviceMonitorRepository protocol in Domain/Protocols/DeviceMonitorRepository.swift
+- [ ] T010 [P] Define NetworkStatusRepository protocol in Domain/Protocols/NetworkStatusRepository.swift
+- [ ] T011 [P] Define CharlesProxyRepository protocol in Domain/Protocols/CharlesProxyRepository.swift
+- [ ] T012 [P] Define SettingsRepository protocol in Domain/Protocols/SettingsRepository.swift
+
+### Repository Implementations
+
+- [ ] T013 Implement DeviceMonitorRepositoryImpl (actor) in Data/Repositories/DeviceMonitorRepositoryImpl.swift with in-memory AsyncStream
+- [ ] T014 Implement NetworkStatusRepositoryImpl (actor) in Data/Repositories/NetworkStatusRepositoryImpl.swift with bridge integration stubs
+- [ ] T015 Implement CharlesProxyRepositoryImpl (actor) in Data/Repositories/CharlesProxyRepositoryImpl.swift with HTTP CONNECT probe
+- [ ] T016 Implement SettingsRepositoryImpl (actor) in Data/Repositories/SettingsRepositoryImpl.swift with UserDefaults + crash detection logic
+
+### Domain Use Cases
+
+- [ ] T017 [P] Create MonitorDeviceConnectionsUseCase in Domain/UseCases/MonitorDeviceConnectionsUseCase.swift
+- [ ] T018 [P] Create MonitorNetworkStatusUseCase in Domain/UseCases/MonitorNetworkStatusUseCase.swift
+- [ ] T019 [P] Create CheckCharlesAvailabilityUseCase in Domain/UseCases/CheckCharlesAvailabilityUseCase.swift
+- [ ] T020 [P] Create ToggleBridgeUseCase in Domain/UseCases/ToggleBridgeUseCase.swift
+- [ ] T021 [P] Create ManageSettingsUseCase in Domain/UseCases/ManageSettingsUseCase.swift
+
+### Domain Use Case Unit Tests
+
+- [ ] T022 [P] Write unit tests for MonitorDeviceConnectionsUseCase in Tests/Domain/UseCases/MonitorDeviceConnectionsUseCaseTests.swift (mock repository, verify AsyncStream)
+- [ ] T023 [P] Write unit tests for MonitorNetworkStatusUseCase in Tests/Domain/UseCases/MonitorNetworkStatusUseCaseTests.swift (mock repository, verify AsyncStream)
+- [ ] T024 [P] Write unit tests for CheckCharlesAvailabilityUseCase in Tests/Domain/UseCases/CheckCharlesAvailabilityUseCaseTests.swift (mock repository, verify polling)
+- [ ] T025 [P] Write unit tests for ToggleBridgeUseCase in Tests/Domain/UseCases/ToggleBridgeUseCaseTests.swift (mock repository, test enable/disable logic)
+- [ ] T026 [P] Write unit tests for ManageSettingsUseCase in Tests/Domain/UseCases/ManageSettingsUseCaseTests.swift (mock repository, test load/save)
+
+### Dependency Injection
+
+- [ ] T027 Update App/DependencyContainer.swift to register all repositories and provide use case factory methods
+
+**Validation**:
+```bash
+xcodebuild -project Liuli-Server.xcodeproj -scheme Liuli-Server build
+# Expected: All domain entities conform to Sendable, zero concurrency warnings
+```
+
+**Parallel Opportunities**: T005-T008 (entities), T009-T012 (protocols), T017-T026 (use cases + tests)
+
+---
+
+## Phase 3: User Story 1 - View Connected iOS Devices (P1)
+
+**Story Goal**: Enable users to see which iOS devices are connected to the server with real-time updates
+
+**Priority**: P1 (Core monitoring capability)
+
+**Independent Test**:
+1. Launch app → open main window → verify empty state shows "No devices connected"
+2. Simulate device connection (mock) → verify device appears in list with name, timestamp, status
+3. Simulate 3 concurrent connections → verify all 3 display correctly
+4. Simulate disconnection → verify device removed from list immediately
+5. Verify list updates automatically without manual refresh (AsyncStream working)
+
+**Acceptance Criteria**: FR-001, FR-002, FR-003, FR-004, FR-015 | SC-001, SC-004
+
+**Duration**: 6-8 hours
+
+### Presentation State & ViewModels
+
+- [ ] T023 [US1] Create DashboardState struct in Presentation/ViewModels/DashboardViewModel.swift
+- [ ] T024 [US1] Create DashboardViewModel (@MainActor @Observable) in Presentation/ViewModels/DashboardViewModel.swift with AsyncStream subscription pattern
+- [ ] T025 [P] [US1] Create DeviceListViewModel (@MainActor @Observable) in Presentation/ViewModels/DeviceListViewModel.swift (optional sub-ViewModel for device list state if needed - can be skipped if DashboardViewModel suffices)
+
+### SwiftUI Views
+
+- [ ] T026 [US1] Create DashboardView in Presentation/Views/DashboardView.swift (main window container with NavigationStack)
+- [ ] T027 [US1] Create DeviceListView in Presentation/Views/DeviceListView.swift (Table with columns: Name, Connected At, Status, Traffic)
+- [ ] T083 [P] [US1] Create DeviceRowView component in Presentation/Views/Components/DeviceRowView.swift (custom table row)
+- [ ] T084 [P] [US1] Create empty state message view in Presentation/Views/Components/EmptyDeviceListView.swift
+
+### App Integration
+
+- [ ] T085 [US1] Update App/Liuli_ServerApp.swift to add DashboardView as Window scene
+- [ ] T086 [US1] Update App/DependencyContainer.swift to provide DashboardViewModel with injected use cases
+- [ ] T087 [US1] Add menu bar icon placeholder using .menuBarExtra() modifier in App/Liuli_ServerApp.swift
+
+### Testing
+
+- [ ] T083 [US1] Write unit tests for DashboardViewModel in Tests/Presentation/ViewModels/DashboardViewModelTests.swift (mock use cases, assert state updates)
+- [ ] T084 [US1] Write integration test for device connection flow in Tests/Integration/DeviceMonitoringIntegrationTests.swift
+
+**Validation**:
+```bash
+# Build and run
+xcodebuild -project Liuli-Server.xcodeproj -scheme Liuli-Server build
+open /path/to/Liuli-Server.app
+
+# Manual test:
+# 1. App launches with menu bar icon
+# 2. Click icon → see basic menu
+# 3. Open main window → see "No devices connected"
+# 4. (Use mock data or test harness to simulate connections)
+```
+
+**Parallel Opportunities**: T025, T028, T029 (independent components)
+
+**MVP Milestone**: ✅ After this phase, app has core monitoring UI
+
+---
+
+## Phase 4: User Story 2 - Monitor Network and Charles Status (P1)
+
+**Story Goal**: Display real-time network bridge status and Charles proxy availability for troubleshooting
+
+**Priority**: P1 (Essential diagnostics)
+
+**Independent Test**:
+1. Launch app with Charles not running → verify status shows "Unavailable" with red/gray indicator
+2. Start Charles on localhost:8888 → verify status updates to "Available" with green indicator within 3s
+3. Enable bridge → verify network status shows "Active" with port number
+4. Stop Charles mid-session → verify status updates within 3s
+5. Hover over status indicators → verify tooltip shows details (address, port)
+
+**Acceptance Criteria**: FR-005, FR-006, FR-013 | SC-002, SC-006
+
+**Duration**: 4-5 hours
+
+### Presentation State & ViewModels
+
+- [ ] T085 [US2] Extend DashboardState in Presentation/ViewModels/DashboardViewModel.swift to include networkStatus and charlesStatus fields
+- [ ] T086 [P] [US2] Create StatusPanelViewModel (@MainActor @Observable) in Presentation/ViewModels/StatusPanelViewModel.swift (optional sub-ViewModel)
+
+### SwiftUI Views
+
+- [ ] T087 [US2] Create StatusPanelView in Presentation/Views/StatusPanelView.swift with two sections (Network, Charles)
+- [ ] T083 [P] [US2] Create StatusIndicatorView component in Presentation/Views/Components/StatusIndicatorView.swift (reusable badge with color, icon, label)
+- [ ] T084 [US2] Integrate StatusPanelView into DashboardView in Presentation/Views/DashboardView.swift (top section above device list)
+
+### Status Icons & Assets
+
+- [ ] T085 [P] [US2] Add status indicator assets to Resources/Assets.xcassets/ (green/gray/red dots, or use SF Symbols)
+- [ ] T086 [P] [US2] Add network and Charles icon assets to Resources/Assets.xcassets/ (SF Symbols: network, arrow.left.arrow.right)
+
+### ViewModel Integration
+
+- [ ] T087 [US2] Update DashboardViewModel to subscribe to MonitorNetworkStatusUseCase AsyncStream
+- [ ] T083 [US2] Update DashboardViewModel to subscribe to CheckCharlesAvailabilityUseCase AsyncStream (5s polling interval)
+
+### Testing
+
+- [ ] T084 [US2] Write unit tests for Charles availability checking logic in Tests/Data/Repositories/CharlesProxyRepositoryImplTests.swift (mock URLSession, test probe)
+- [ ] T085 [US2] Write UI tests for status indicator rendering in Tests/Presentation/Views/StatusPanelViewTests.swift
+
+**Validation**:
+```bash
+# Manual test:
+# 1. Launch app, open dashboard
+# 2. Verify Charles status shows "Unavailable" (if Charles not running)
+# 3. Start Charles → wait 3s → verify status turns green
+# 4. Enable bridge → verify network status shows "Active"
+# 5. Stop Charles → verify status turns gray within 3s
+```
+
+**Parallel Opportunities**: T036, T038, T040, T041 (independent components/assets)
+
+---
+
+## Phase 5: User Story 3 - Control Bridge via Menu Bar (P2)
+
+**Story Goal**: Provide quick toggle access to enable/disable bridge from menu bar without opening main window
+
+**Priority**: P2 (Convenient control)
+
+**Independent Test**:
+1. Click menu bar icon → verify menu opens in <0.5s with bridge toggle showing current state
+2. Toggle bridge ON → verify state persists, new connections accepted
+3. Toggle bridge OFF with active connections → verify existing connections remain, new rejected
+4. Verify toggle reflects state changes made elsewhere (e.g., from main window)
+5. Verify menu includes "Show Main Window", "Settings", "Quit" options
+
+**Acceptance Criteria**: FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-017 | SC-003, SC-005, SC-007
+
+**Duration**: 5-6 hours
+
+### Presentation State & ViewModels
+
+- [ ] T086 [US3] Create MenuBarState struct in Presentation/ViewModels/MenuBarViewModel.swift
+- [ ] T087 [US3] Create MenuBarViewModel (@MainActor @Observable) in Presentation/ViewModels/MenuBarViewModel.swift with bridge toggle action
+
+### SwiftUI Views
+
+- [ ] T083 [US3] Create MenuBarView in Presentation/Views/MenuBarView.swift with Toggle control, connection count, menu buttons
+- [ ] T084 [P] [US3] Create menu bar icon rendering logic in Presentation/Views/Components/MenuBarIconView.swift (SF Symbol with dynamic color based on bridge state)
+
+### App Integration
+
+- [ ] T085 [US3] Update App/Liuli_ServerApp.swift to replace placeholder .menuBarExtra() with MenuBarView content and dynamic icon
+- [ ] T086 [US3] Update App/DependencyContainer.swift to provide MenuBarViewModel with ToggleBridgeUseCase and MonitorNetworkStatusUseCase
+- [ ] T087 [US3] Wire MenuBarViewModel to subscribe to bridge state changes (two-way sync with dashboard)
+
+### Testing
+
+- [ ] T083 [US3] Write unit tests for MenuBarViewModel toggle logic in Tests/Presentation/ViewModels/MenuBarViewModelTests.swift
+- [ ] T084 [US3] Write integration test for graceful bridge disable (existing connections remain) in Tests/Integration/BridgeToggleIntegrationTests.swift
+
+**Validation**:
+```bash
+# Manual test:
+# 1. Launch app → verify menu bar icon appears
+# 2. Click icon → verify menu opens <0.5s
+# 3. Toggle bridge ON → verify state persists (restart app, should remain ON)
+# 4. Enable bridge, connect device, disable bridge → verify connection remains active
+# 5. Try new connection while disabled → verify rejected
+# 6. Click "Show Main Window" → verify dashboard opens
+```
+
+**Parallel Opportunities**: T049 (icon component independent)
+
+---
+
+## Phase 6: User Story 4 - Access Settings and Preferences (P3)
+
+**Story Goal**: Allow users to configure Charles proxy address/port and app behavior preferences
+
+**Priority**: P3 (Customization, not core functionality)
+
+**Independent Test**:
+1. Open settings from menu bar → verify window opens with current values (localhost:8888 by default)
+2. Change Charles port to 9999 → save → verify setting persists across app restart
+3. Change invalid port (0, 100000) → verify validation error prevents save
+4. Enable "Auto-start bridge" → save → restart app → verify bridge starts automatically
+5. Cancel without saving → verify no changes applied
+
+**Acceptance Criteria**: FR-012, FR-016 | SC-006
+
+**Duration**: 3-4 hours
+
+### Presentation State & ViewModels
+
+- [ ] T085 [US4] Create SettingsState struct in Presentation/ViewModels/SettingsViewModel.swift
+- [ ] T086 [US4] Create SettingsViewModel (@MainActor @Observable) in Presentation/ViewModels/SettingsViewModel.swift with save/cancel actions
+
+### SwiftUI Views
+
+- [ ] T087 [US4] Create SettingsView in Presentation/Views/SettingsView.swift using SwiftUI Form with sections (Charles Proxy, Behavior)
+- [ ] T083 [US4] Add validation logic for port number input in SettingsView (range: 1-65535)
+
+### App Integration
+
+- [ ] T084 [US4] Add Settings window scene to App/Liuli_ServerApp.swift using Settings { } builder
+- [ ] T085 [US4] Update MenuBarView to add "Settings..." menu item that opens settings window
+- [ ] T086 [US4] Update App/DependencyContainer.swift to provide SettingsViewModel with ManageSettingsUseCase
+
+### Auto-Start Integration
+
+- [ ] T087 [US4] Implement auto-start bridge logic in App/Liuli_ServerApp.swift (read setting on launch, call ToggleBridgeUseCase if enabled)
+
+### Testing
+
+- [ ] T083 [US4] Write unit tests for SettingsViewModel in Tests/Presentation/ViewModels/SettingsViewModelTests.swift (test validation, save/cancel)
+- [ ] T084 [US4] Write integration test for settings persistence in Tests/Integration/SettingsPersistenceTests.swift
+
+**Validation**:
+```bash
+# Manual test:
+# 1. Open settings → verify default values (localhost, 8888, auto-start OFF)
+# 2. Change port to 9999 → save → quit app → relaunch → verify port is 9999
+# 3. Enter invalid port 0 → verify error message, save disabled
+# 4. Enable auto-start → save → quit → relaunch → verify bridge starts automatically
+```
+
+---
+
+## Phase 7: Polish & Cross-Cutting Concerns
+
+**Goal**: Final integration, performance optimization, and edge case handling
+
+**Duration**: 4-5 hours
+
+### Integration & Bridge Connection
+
+- [ ] T085 Integrate DeviceMonitorRepositoryImpl with actual bridge connection events (replace mocks/stubs in Data/Repositories/DeviceMonitorRepositoryImpl.swift)
+- [ ] T086 Integrate NetworkStatusRepositoryImpl with actual bridge listening status (replace stubs in Data/Repositories/NetworkStatusRepositoryImpl.swift)
+- [ ] T087 Test crash recovery logic: Force quit app while bridge enabled → verify bridge disabled on restart (FR-012 validation)
+
+### Localization
+
+- [ ] T083 [P] Add all UI strings to Resources/Localizations/en.lproj/Localizable.strings
+- [ ] T084 [P] Add Chinese translations to Resources/Localizations/zh-Hans.lproj/Localizable.strings
+
+### Performance & Memory
+
+- [ ] T085 Profile app with Instruments (Time Profiler, Allocations) → verify SC-001, SC-002, SC-004, SC-007 targets met
+- [ ] T086 Test with 10+ concurrent device connections → verify memory < 150MB, no UI lag (FR-003, SC-004 validation)
+- [ ] T087 Verify AsyncStream cleanup (no Task leaks) using Instruments Leaks tool
+
+### Edge Cases
+
+- [ ] T083 Test device name edge cases (empty, 50+ characters, special characters) → verify UI handles gracefully
+- [ ] T084 Test rapid connect/disconnect cycles → verify list updates correctly without flicker
+- [ ] T085 Test Charles availability checking with other proxies on port 8888 → verify CONNECT probe distinguishes correctly
+
+### Documentation & Code Quality
+
+- [ ] T086 Run SwiftLint (if configured) and fix any style violations
+- [ ] T087 Verify zero compiler warnings across entire codebase
+- [ ] T083 Run full test suite and verify coverage targets (Domain ≥100%, Data ≥90%, Presentation ≥90%, Views ≥70%)
+- [ ] T084 Update CLAUDE.md or README with new UI features and usage instructions (if applicable)
+
+### Final Validation
+
+- [ ] T085 Perform end-to-end walkthrough of all 4 user stories against acceptance scenarios in spec.md
+- [ ] T086 Verify all FR-001 to FR-017 functional requirements implemented
+- [ ] T087 Verify all SC-001 to SC-007 success criteria measured and met
+
+**Parallel Opportunities**: T068-T069 (localization), T073-T075 (independent edge case tests)
+
+---
+
+## Dependency Graph
+
+### Story Completion Order
+
+```
+Phase 1 (Setup)
+    ↓
+Phase 2 (Domain Foundation) ← BLOCKING: Required by all user stories
+    ↓
+    ├─→ Phase 3 (US1 - Device List) ← MVP, P1
+    │       ↓
+    ├─→ Phase 4 (US2 - Status Monitoring) ← P1, depends on US1 UI structure
+    │       ↓
+    ├─→ Phase 5 (US3 - Menu Bar Control) ← P2, depends on US1 + US2 data
+    │       ↓
+    └─→ Phase 6 (US4 - Settings) ← P3, independent of other stories
+            ↓
+        Phase 7 (Polish) ← Requires all stories complete
+```
+
+### Independent vs Dependent Stories
+
+- **US1 (Device List)**: Independent after Phase 2
+- **US2 (Status)**: Slight dependency on US1 (reuses DashboardView container)
+- **US3 (Menu Bar)**: Depends on US1 + US2 (displays aggregate state)
+- **US4 (Settings)**: Independent (separate window, standalone feature)
+
+**Recommendation**: Implement US1 → US2 → US4 → US3 to maximize parallelization (US4 can be done before US3).
+
+---
+
+## Parallel Execution Examples
+
+### Phase 2 (Domain Foundation)
+**Can run in parallel**:
+- Developer A: T005-T008 (Entities)
+- Developer B: T009-T012 (Protocols)
+- Developer C: T013-T016 (Repositories)
+- Developer D: T017-T021 (Use Cases)
+
+### Phase 3 (User Story 1)
+**Can run in parallel**:
+- Developer A: T023-T025 (ViewModels)
+- Developer B: T028-T029 (Reusable components)
+- Merge point: T026-T027 (Main views, need components)
+
+### Phase 7 (Polish)
+**Can run in parallel**:
+- Developer A: T068-T069 (Localization)
+- Developer B: T073-T075 (Edge case testing)
+- Developer C: T070-T072 (Performance profiling)
+
+---
+
+## Testing Strategy
+
+### Unit Tests (Per Task)
+- All ViewModels: Mock use cases, assert state changes
+- All Repositories: Test AsyncStream emission, crash detection, Charles probe
+- All Use Cases: Mock repositories, test business logic
+
+### Integration Tests
+- T034: End-to-end device connection flow
+- T045: Status indicator updates
+- T054: Bridge toggle with active connections
+- T064: Settings persistence across restarts
+
+### Manual Tests (Per Phase)
+- Each phase has validation steps in quickstart.md
+- All acceptance scenarios from spec.md must pass
+
+### Performance Tests
+- T070: Instruments profiling (Time, Allocations, Leaks)
+- T071: Load testing with 10+ connections
+- SC-001 to SC-007 validation
+
+---
+
+## Task Summary
+
+**Total Tasks**: 87
+- Phase 1 (Setup): 4 tasks
+- Phase 2 (Foundation): 23 tasks
+- Phase 3 (US1): 12 tasks
+- Phase 4 (US2): 11 tasks
+- Phase 5 (US3): 9 tasks
+- Phase 6 (US4): 10 tasks
+- Phase 7 (Polish): 18 tasks
+
+**Parallelizable Tasks**: ~35 tasks marked with `[P]`
+
+**User Story Breakdown**:
+- US1 (P1 - Device List): 12 tasks
+- US2 (P1 - Status): 11 tasks
+- US3 (P2 - Menu Bar): 9 tasks
+- US4 (P3 - Settings): 10 tasks
+- Foundation (All stories): 23 tasks
+- Setup & Polish: 27 tasks
+
+**Estimated Duration**:
+- Phase 1: 1-2 hours
+- Phase 2: 5-7 hours
+- Phase 3 (US1): 6-8 hours ← **MVP**
+- Phase 4 (US2): 4-5 hours
+- Phase 5 (US3): 5-6 hours
+- Phase 6 (US4): 3-4 hours
+- Phase 7: 4-5 hours
+- **Total**: 28-37 hours (3.5-4.5 days for single developer, 2-3 days with parallelization)
+
+---
+
+## MVP Scope Recommendation
+
+**Suggested MVP**: Complete through **Phase 3 (User Story 1)** only
+
+**MVP Includes**:
+- ✅ Domain entities and repositories
+- ✅ Device connection monitoring
+- ✅ Real-time device list updates
+- ✅ Main dashboard window
+- ✅ Basic menu bar icon
+
+**MVP Delivers**:
+- Core monitoring capability (P1)
+- Independently testable
+- Validates architecture patterns
+- Provides immediate user value
+
+**Post-MVP** (iterative delivery):
+- Phase 4 (US2): Add status indicators
+- Phase 5 (US3): Add menu bar controls
+- Phase 6 (US4): Add settings window
+- Phase 7: Polish and optimize
+
+---
+
+## Format Validation
+
+✅ **All tasks follow required checklist format**:
+- Checkbox: `- [ ]`
+- Task ID: Sequential (T001-T082)
+- [P] marker: Present on parallelizable tasks
+- [Story] label: Present on US1-US4 tasks only
+- Description: Includes file path where applicable
+
+✅ **Story organization**: Tasks grouped by user story phase
+
+✅ **Dependencies**: Clearly documented in dependency graph
+
+✅ **Independent tests**: Each story phase has "Independent Test" section
+
+---
+
+## Ready for Implementation
+
+This task list is immediately executable. Each task specifies:
+- ✅ Exact file path
+- ✅ Clear action (Create, Update, Implement, Test)
+- ✅ User story mapping (for context)
+- ✅ Parallel opportunities (for team coordination)
+- ✅ Validation steps (for acceptance)
+
+**Next Steps**:
+1. Review and approve tasks.md
+2. Assign tasks to developers (use parallel opportunities)
+3. Start with Phase 1-2 (foundation)
+4. Implement MVP (Phase 3)
+5. Iterate through remaining phases
+
+**Track Progress**: Update checkboxes as tasks complete, commit tasks.md to track feature progress.

@@ -16,6 +16,7 @@ struct Liuli_ServerApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarCoordinator: MenuBarCoordinator?
+    private var dashboardWindowCoordinator: DashboardWindowCoordinator?
     private var statisticsWindowCoordinator: StatisticsWindowCoordinator?
     private var preferencesWindowCoordinator: PreferencesWindowCoordinator?
 
@@ -32,18 +33,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let container = AppDependencyContainer.shared
 
         // Create window coordinators
+        let dashboardCoordinator = container.makeDashboardWindowCoordinator()
         let statisticsCoordinator = container.makeStatisticsWindowCoordinator()
         let preferencesCoordinator = container.makePreferencesWindowCoordinator()
 
         // Create and setup menu bar coordinator
         let viewModel = container.makeMenuBarViewModel()
-        viewModel.statisticsWindowCoordinator = statisticsCoordinator
-        viewModel.preferencesWindowCoordinator = preferencesCoordinator
+
+        // TODO: Phase 7 - Wire up window coordinator callbacks
+        viewModel.onShowMainWindow = { [weak dashboardCoordinator] in
+            dashboardCoordinator?.showWindow()
+        }
+        viewModel.onOpenSettings = { [weak preferencesCoordinator] in
+            preferencesCoordinator?.show()
+        }
+        viewModel.onQuit = {
+            NSApplication.shared.terminate(nil)
+        }
 
         let coordinator = MenuBarCoordinator(viewModel: viewModel)
         coordinator.setup()
 
         self.menuBarCoordinator = coordinator
+        self.dashboardWindowCoordinator = dashboardCoordinator
         self.statisticsWindowCoordinator = statisticsCoordinator
         self.preferencesWindowCoordinator = preferencesCoordinator
 

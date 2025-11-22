@@ -1,139 +1,104 @@
 import Foundation
-import Observation
-import AppKit
+import SwiftUI
 
-/// Menu bar view model (FR-024 to FR-030)
+/// State for menu bar view
+public struct MenuBarState: Sendable, Equatable {
+    /// Whether bridge is currently enabled
+    public var isBridgeEnabled: Bool
+
+    /// Number of active connections
+    public var connectionCount: Int
+
+    /// Current network status
+    public var networkStatus: NetworkStatus
+
+    /// Error message if any
+    public var errorMessage: String?
+
+    public init(
+        isBridgeEnabled: Bool = false,
+        connectionCount: Int = 0,
+        networkStatus: NetworkStatus = NetworkStatus(isListening: false),
+        errorMessage: String? = nil
+    ) {
+        self.isBridgeEnabled = isBridgeEnabled
+        self.connectionCount = connectionCount
+        self.networkStatus = networkStatus
+        self.errorMessage = errorMessage
+    }
+}
+
+/// Actions for menu bar
+public enum MenuBarAction: Sendable {
+    case toggleBridge
+    case showMainWindow
+    case openSettings
+    case quit
+}
+
+/// ViewModel for menu bar control
 @MainActor
 @Observable
 public final class MenuBarViewModel {
-    private(set) var state: MenuBarViewState
+    private let toggleBridgeUseCase: ToggleBridgeUseCase
+    private let monitorNetworkUseCase: MonitorNetworkStatusUseCase
 
-    private let startServiceUseCase: StartServiceUseCase
-    private let stopServiceUseCase: StopServiceUseCase
-    private let detectCharlesUseCase: DetectCharlesUseCase
+    private(set) var state = MenuBarState()
 
-    // Window coordinators (injected externally)
-    public var statisticsWindowCoordinator: StatisticsWindowCoordinator?
-    public var preferencesWindowCoordinator: PreferencesWindowCoordinator?
+    private var networkTask: Task<Void, Never>?
+
+    // TODO: Phase 7 - Inject window coordinators for app integration
+    public var onShowMainWindow: (() -> Void)?
+    public var onOpenSettings: (() -> Void)?
+    public var onQuit: (() -> Void)?
 
     public init(
-        startServiceUseCase: StartServiceUseCase,
-        stopServiceUseCase: StopServiceUseCase,
-        detectCharlesUseCase: DetectCharlesUseCase
+        toggleBridgeUseCase: ToggleBridgeUseCase,
+        monitorNetworkUseCase: MonitorNetworkStatusUseCase
     ) {
-        self.startServiceUseCase = startServiceUseCase
-        self.stopServiceUseCase = stopServiceUseCase
-        self.detectCharlesUseCase = detectCharlesUseCase
-        self.state = MenuBarViewState()
+        self.toggleBridgeUseCase = toggleBridgeUseCase
+        self.monitorNetworkUseCase = monitorNetworkUseCase
     }
 
-    /// Handle user action
-    public func send(_ action: MenuBarViewAction) {
+    public func startMonitoring() {
+        networkTask = Task {
+            for await status in monitorNetworkUseCase.execute() {
+                state.networkStatus = status
+                state.isBridgeEnabled = status.isListening
+                state.connectionCount = status.activeConnectionCount
+            }
+        }
+    }
+
+    public func stopMonitoring() {
+        networkTask?.cancel()
+    }
+
+    public func send(_ action: MenuBarAction) {
         Task {
             switch action {
-            case .startService:
-                await startService()
-            case .stopService:
-                await stopService()
-            case .openCharles:
-                await openCharles()
-            case .viewStatistics:
-                statisticsWindowCoordinator?.show()
-            case .openPreferences:
-                preferencesWindowCoordinator?.show()
+            case .toggleBridge:
+                await toggleBridge()
+            case .showMainWindow:
+                onShowMainWindow?()
+            case .openSettings:
+                onOpenSettings?()
             case .quit:
-                NSApplication.shared.terminate(nil)
+                onQuit?()
             }
         }
     }
 
-    private func startService() async {
-        state = MenuBarViewState(serviceState: .starting)
-
+    private func toggleBridge() async {
         do {
-            let bridge = try await startServiceUseCase.execute()
-
-            state = MenuBarViewState(
-                serviceState: bridge.state,
-                connectedDeviceCount: bridge.connectedDeviceCount,
-                charlesStatus: bridge.charlesStatus
-            )
-
-            // Show notification (FR-029)
-            await NotificationService.shared.showServiceStarted()
-
-            // Show Charles warning if not detected (FR-037)
-            if !bridge.charlesStatus.isReachable {
-                await NotificationService.shared.showCharlesNotDetected()
-            }
-        } catch {
-            state = MenuBarViewState(
-                serviceState: .error,
-                errorMessage: error.localizedDescription
-            )
-
-            if let bridgeError = error as? BridgeServiceError {
-                showErrorAlert(bridgeError)
+            if state.isBridgeEnabled {
+                try await toggleBridgeUseCase.disable()
             } else {
-                // For generic errors, log them
-                Logger.ui.error("Service start failed: \(error.localizedDescription)")
+                try await toggleBridgeUseCase.enable()
             }
-        }
-    }
-
-    private func stopService() async {
-        state = MenuBarViewState(serviceState: .stopping)
-
-        do {
-            let bridge = try await stopServiceUseCase.execute()
-
-            state = MenuBarViewState(
-                serviceState: bridge.state,
-                connectedDeviceCount: 0,
-                charlesStatus: .unknown
-            )
-
-            // Show notification (FR-029)
-            await NotificationService.shared.showServiceStopped()
+            state.errorMessage = nil
         } catch {
-            state = MenuBarViewState(
-                serviceState: .error,
-                errorMessage: error.localizedDescription
-            )
-        }
-    }
-
-    private func openCharles() async {
-        do {
-            try await detectCharlesUseCase.launchCharles()
-        } catch {
-            if let bridgeError = error as? BridgeServiceError {
-                showErrorAlert(bridgeError)
-            } else {
-                Logger.ui.error("Failed to launch Charles: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func showErrorAlert(_ error: BridgeServiceError) {
-        // For now, just log the error
-        Logger.ui.error("Error: \(error.localizedDescription)")
-    }
-
-    private func handleRecoveryAction(_ action: BridgeServiceError.RecoveryAction) {
-        Task {
-            switch action {
-            case .changePort:
-                preferencesWindowCoordinator?.show()
-            case .launchCharles:
-                await openCharles()
-            case .restartService:
-                await stopService()
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                await startService()
-            case .none:
-                break
-            }
+            state.errorMessage = error.localizedDescription
         }
     }
 }

@@ -16,16 +16,20 @@ public final class MenuBarCoordinator {
         // Create status item in menu bar
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
+        // Store reference first
+        self.statusItem = statusItem
+
         if let button = statusItem.button {
-            button.title = "" // Will be replaced with icon
             button.action = #selector(togglePopover)
             button.target = self
 
             // Set initial icon based on state
             updateIcon(isEnabled: viewModel.state.isBridgeEnabled)
-        }
 
-        self.statusItem = statusItem
+            print("✅ MenuBarCoordinator: Status bar icon set up with title: '\(button.title)'")
+        } else {
+            print("❌ MenuBarCoordinator: Failed to get status bar button")
+        }
 
         // Create popover
         let popover = NSPopover()
@@ -57,10 +61,18 @@ public final class MenuBarCoordinator {
     }
 
     private func updateIcon(isEnabled: Bool) {
-        guard let button = statusItem?.button else { return }
+        guard let button = statusItem?.button else {
+            print("❌ MenuBarCoordinator: No button available")
+            return
+        }
 
-        // TODO: Phase 7 - Use SF Symbols or custom assets
-        // For now, use simple emoji indicators
-        button.title = isEnabled ? "🟢" : "⚪️"
+        // Use clear, visible text
+        button.image = nil
+        button.title = "LS"  // Liuli Server - simple and always visible
+        button.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+
+        print("✅ MenuBarCoordinator: Set icon to 'LS' - isEnabled: \(isEnabled)")
+        print("   Button frame: \(button.frame)")
+        print("   Button isHidden: \(button.isHidden)")
     }
 }

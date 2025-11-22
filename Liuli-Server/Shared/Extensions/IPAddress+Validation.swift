@@ -26,10 +26,11 @@ extension IPv4Address {
     /// - 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
     /// - 192.168.0.0/16 (192.168.0.0 - 192.168.255.255)
     public func isRFC1918() -> Bool {
-        let bytes = rawValue.bigEndian
+        let bytes = withUnsafeBytes(of: rawValue.bigEndian) { Array($0) }
+        guard bytes.count >= 2 else { return false }
 
-        let octet1 = UInt8((bytes >> 24) & 0xFF)
-        let octet2 = UInt8((bytes >> 16) & 0xFF)
+        let octet1 = bytes[0]
+        let octet2 = bytes[1]
 
         // 10.0.0.0/8
         if octet1 == 10 {
@@ -51,9 +52,11 @@ extension IPv4Address {
 
     /// Check if IPv4 address is link-local (169.254.0.0/16)
     public func isLinkLocal() -> Bool {
-        let bytes = rawValue.bigEndian
-        let octet1 = UInt8((bytes >> 24) & 0xFF)
-        let octet2 = UInt8((bytes >> 16) & 0xFF)
+        let bytes = withUnsafeBytes(of: rawValue.bigEndian) { Array($0) }
+        guard bytes.count >= 2 else { return false }
+
+        let octet1 = bytes[0]
+        let octet2 = bytes[1]
 
         return octet1 == 169 && octet2 == 254
     }
@@ -62,8 +65,8 @@ extension IPv4Address {
 extension IPv6Address {
     /// Check if IPv6 address is link-local (fe80::/10)
     public func isLinkLocal() -> Bool {
-        let bytes = self.rawValue
+        let bytes = withUnsafeBytes(of: rawValue) { Array($0) }
         // Link-local IPv6 starts with fe80
-        return bytes.0 == 0xfe && (bytes.1 & 0xc0) == 0x80
+        return bytes.count >= 2 && bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80
     }
 }

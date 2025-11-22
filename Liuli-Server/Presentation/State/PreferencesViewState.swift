@@ -7,7 +7,7 @@ public struct PreferencesViewState: Sendable, Equatable {
     public var isValid: Bool
 
     public init(
-        configuration: ProxyConfiguration = .defaultConfiguration,
+        configuration: ProxyConfiguration = .default,
         validationError: String? = nil,
         isValid: Bool = true
     ) {

@@ -4,12 +4,12 @@ import AppKit
 /// Error alert view with recovery actions (FR-047)
 public struct ErrorAlertView: View {
     let error: BridgeServiceError
-    let onAction: (ErrorRecoveryAction) -> Void
+    let onAction: (BridgeServiceError.RecoveryAction) -> Void
     let onDismiss: () -> Void
 
     public init(
         error: BridgeServiceError,
-        onAction: @escaping (ErrorRecoveryAction) -> Void,
+        onAction: @escaping (BridgeServiceError.RecoveryAction) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.error = error
@@ -24,30 +24,23 @@ public struct ErrorAlertView: View {
                 .font(.system(size: 48))
                 .foregroundColor(errorColor)
 
-            // Error title
-            Text(error.title)
-                .font(.headline)
-
             // Error message
-            Text(error.message)
+            Text(error.localizedDescription)
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            // Recovery actions
-            if !error.recoveryActions.isEmpty {
-                VStack(spacing: 8) {
-                    ForEach(error.recoveryActions, id: \.self) { action in
-                        Button(action: {
-                            onAction(action)
-                            onDismiss()
-                        }) {
-                            Text(action.localizedTitle)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
+            // Recovery action button
+            let action = error.recoveryAction
+            if action != .none {
+                Button(action: {
+                    onAction(action)
+                    onDismiss()
+                }) {
+                    Text(action.localizedTitle)
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
             }
 
             // Dismiss button
@@ -61,87 +54,33 @@ public struct ErrorAlertView: View {
     }
 
     private var errorIcon: String {
-        switch error.severity {
-        case .critical:
-            return "xmark.octagon.fill"
-        case .recoverable:
-            return "exclamationmark.triangle.fill"
-        case .warning:
-            return "exclamationmark.circle.fill"
-        }
+        "exclamationmark.triangle.fill"
     }
 
     private var errorColor: Color {
-        switch error.severity {
-        case .critical:
-            return .red
-        case .recoverable:
-            return .orange
-        case .warning:
-            return .yellow
-        }
+        .orange
     }
 }
 
 /// Error recovery action extensions
-extension ErrorRecoveryAction {
+extension BridgeServiceError.RecoveryAction {
     var localizedTitle: String {
         switch self {
-        case .retry:
-            return "error.action.retry".localized()
+        case .changePort:
+            return "error.action.changePort".localized()
+        case .launchCharles:
+            return "error.action.launchCharles".localized()
         case .restartService:
             return "error.action.restartService".localized()
-        case .checkCharlesProxy:
-            return "error.action.checkCharles".localized()
-        case .openPreferences:
-            return "error.action.openPreferences".localized()
-        case .viewLogs:
-            return "error.action.viewLogs".localized()
-        case .contactSupport:
-            return "error.action.contactSupport".localized()
-        }
-    }
-}
-
-/// Helper function to show error alert (FR-047)
-@MainActor
-public func showErrorAlert(
-    error: BridgeServiceError,
-    onAction: @escaping (ErrorRecoveryAction) -> Void
-) {
-    let alert = NSAlert()
-    alert.alertStyle = error.severity == .critical ? .critical : .warning
-    alert.messageText = error.title
-    alert.informativeText = error.message
-
-    // Add recovery actions as buttons
-    for action in error.recoveryActions {
-        alert.addButton(withTitle: action.localizedTitle)
-    }
-
-    // Add dismiss button
-    alert.addButton(withTitle: "error.dismiss".localized())
-
-    let response = alert.runModal()
-
-    // Handle button response
-    if response != .alertThirdButtonReturn {
-        let actionIndex = Int(response.rawValue) - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-        if actionIndex < error.recoveryActions.count {
-            onAction(error.recoveryActions[actionIndex])
+        case .none:
+            return ""
         }
     }
 }
 
 #Preview {
     ErrorAlertView(
-        error: BridgeServiceError(
-            code: .charlesProxyNotReachable,
-            severity: .recoverable,
-            message: "Charles Proxy is not reachable at localhost:8888",
-            underlyingError: nil,
-            recoveryActions: [.checkCharlesProxy, .openPreferences]
-        ),
+        error: .charlesUnreachable(host: "localhost", port: 8888),
         onAction: { action in
             print("Recovery action: \(action)")
         },

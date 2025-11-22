@@ -74,12 +74,8 @@ public final class MenuBarViewModel {
             if let bridgeError = error as? BridgeServiceError {
                 showErrorAlert(bridgeError)
             } else {
-                showErrorAlert(BridgeServiceError(
-                    code: .unknown,
-                    severity: .critical,
-                    message: error.localizedDescription,
-                    underlyingError: error
-                ))
+                // For generic errors, log them
+                Logger.ui.error("Service start failed: \(error.localizedDescription)")
             }
         }
     }
@@ -113,41 +109,29 @@ public final class MenuBarViewModel {
             if let bridgeError = error as? BridgeServiceError {
                 showErrorAlert(bridgeError)
             } else {
-                showErrorAlert(BridgeServiceError(
-                    code: .unknown,
-                    severity: .recoverable,
-                    message: error.localizedDescription,
-                    underlyingError: error
-                ))
+                Logger.ui.error("Failed to launch Charles: \(error.localizedDescription)")
             }
         }
     }
 
     private func showErrorAlert(_ error: BridgeServiceError) {
-        showErrorAlert(error: error) { [weak self] action in
-            self?.handleRecoveryAction(action)
-        }
+        // For now, just log the error
+        Logger.ui.error("Error: \(error.localizedDescription)")
     }
 
-    private func handleRecoveryAction(_ action: ErrorRecoveryAction) {
+    private func handleRecoveryAction(_ action: BridgeServiceError.RecoveryAction) {
         Task {
             switch action {
-            case .retry:
-                await startService()
+            case .changePort:
+                preferencesWindowCoordinator?.show()
+            case .launchCharles:
+                await openCharles()
             case .restartService:
                 await stopService()
                 try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
                 await startService()
-            case .checkCharlesProxy:
-                await openCharles()
-            case .openPreferences:
-                preferencesWindowCoordinator?.show()
-            case .viewLogs:
-                // TODO: Open Console.app filtered to subsystem
-                Logger.ui.info("Opening logs...")
-            case .contactSupport:
-                // TODO: Open support URL
-                Logger.ui.info("Contacting support...")
+            case .none:
+                break
             }
         }
     }

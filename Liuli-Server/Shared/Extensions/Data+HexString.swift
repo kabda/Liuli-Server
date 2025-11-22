@@ -16,7 +16,7 @@ extension Data {
         let bytes = [UInt8](self)
 
         for lineStart in stride(from: 0, to: bytes.count, by: bytesPerLine) {
-            let lineEnd = min(lineStart + bytesPerLine, bytes.count)
+            let lineEnd = Swift.min(lineStart + bytesPerLine, bytes.count)
             let lineBytes = bytes[lineStart..<lineEnd]
 
             // Offset

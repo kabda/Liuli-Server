@@ -40,7 +40,7 @@ public struct ProxyConfiguration: Sendable, Codable, Equatable {
     public static let `default` = ProxyConfiguration()
 
     /// Validate configuration values (FR-044)
-    public func validate() throws {
+    nonisolated public func validate() throws {
         // Port must be in valid range (1024-65535)
         guard socks5Port >= 1024 && socks5Port <= 65535 else {
             throw BridgeServiceError.invalidConfiguration(reason: "SOCKS5 port must be between 1024 and 65535")

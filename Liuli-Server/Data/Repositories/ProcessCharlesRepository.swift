@@ -3,7 +3,7 @@ import AppKit
 
 /// Charles Proxy detection and control using NSWorkspace (FR-036 to FR-040)
 public actor ProcessCharlesRepository: CharlesProxyRepository {
-    private let workspace: NSWorkspace
+    private nonisolated(unsafe) let workspace: NSWorkspace
     private let backoff: ExponentialBackoff
 
     public init(workspace: NSWorkspace = .shared) {

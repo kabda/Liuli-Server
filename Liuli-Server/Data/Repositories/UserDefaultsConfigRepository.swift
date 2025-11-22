@@ -2,7 +2,7 @@ import Foundation
 
 /// UserDefaults-based configuration repository (FR-041 to FR-044)
 public actor UserDefaultsConfigRepository: ConfigurationRepository {
-    private let defaults: UserDefaults
+    private nonisolated(unsafe) let defaults: UserDefaults
     private let key = "com.liuli.server.configuration"
 
     public init(defaults: UserDefaults = .standard) {

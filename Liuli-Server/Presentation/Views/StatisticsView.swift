@@ -68,9 +68,9 @@ struct OverviewSection: View {
         .background(Color(NSColor.controlBackgroundColor))
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
+    private func formatBytes(_ bytes: UInt64) -> String {
         ByteCountFormatter.string(
-            fromByteCount: bytes,
+            fromByteCount: Int64(bytes),
             countStyle: .binary
         )
     }
@@ -113,10 +113,10 @@ struct ConnectionRow: View {
 
             // Source info
             VStack(alignment: .leading, spacing: 2) {
-                Text(connection.sourceAddress)
+                Text(connection.sourceIP)
                     .font(.system(.body, design: .monospaced))
 
-                Text("statistics.connectedAt".localized(args: formatTime(connection.connectedAt)))
+                Text("statistics.connectedAt".localized(args: formatTime(connection.startTime)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -128,10 +128,10 @@ struct ConnectionRow: View {
 
             // Destination info
             VStack(alignment: .leading, spacing: 2) {
-                Text(connection.destinationAddress)
+                Text("\(connection.destinationHost):\(connection.destinationPort)")
                     .font(.system(.body, design: .monospaced))
 
-                Text("statistics.bytesSent".localized(args: formatBytes(connection.bytesSent)))
+                Text("statistics.bytesSent".localized(args: formatBytes(connection.bytesUploaded)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -139,7 +139,7 @@ struct ConnectionRow: View {
             Spacer()
 
             // Bytes received
-            Text(formatBytes(connection.bytesReceived))
+            Text(formatBytes(connection.bytesDownloaded))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -149,13 +149,13 @@ struct ConnectionRow: View {
 
     private var stateColor: Color {
         switch connection.state {
-        case .connected:
+        case .active:
             return .green
-        case .negotiating:
+        case .connecting:
             return .blue
-        case .forwarding:
-            return .green
-        case .closed:
+        case .idle:
+            return .yellow
+        case .closing, .closed:
             return .gray
         case .error:
             return .red
@@ -168,9 +168,9 @@ struct ConnectionRow: View {
         return formatter.string(from: date)
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
+    private func formatBytes(_ bytes: UInt64) -> String {
         ByteCountFormatter.string(
-            fromByteCount: bytes,
+            fromByteCount: Int64(bytes),
             countStyle: .binary
         )
     }

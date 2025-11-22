@@ -6,35 +6,35 @@ enum Logger {
     static let subsystem = "com.liuli.server"
 
     /// Pre-configured OSLog loggers for each category
-    static let service: OSLog = {
+    nonisolated(unsafe) static let service: OSLog = {
         OSLog(subsystem: subsystem, category: "service")
     }()
 
-    static let socks5: OSLog = {
+    nonisolated(unsafe) static let socks5: OSLog = {
         OSLog(subsystem: subsystem, category: "socks5")
     }()
 
-    static let bonjour: OSLog = {
+    nonisolated(unsafe) static let bonjour: OSLog = {
         OSLog(subsystem: subsystem, category: "bonjour")
     }()
 
-    static let charles: OSLog = {
+    nonisolated(unsafe) static let charles: OSLog = {
         OSLog(subsystem: subsystem, category: "charles")
     }()
 
-    static let connections: OSLog = {
+    nonisolated(unsafe) static let connections: OSLog = {
         OSLog(subsystem: subsystem, category: "connections")
     }()
 
-    static let configuration: OSLog = {
+    nonisolated(unsafe) static let configuration: OSLog = {
         OSLog(subsystem: subsystem, category: "configuration")
     }()
 
-    static let ui: OSLog = {
+    nonisolated(unsafe) static let ui: OSLog = {
         OSLog(subsystem: subsystem, category: "ui")
     }()
 
-    static let network: OSLog = {
+    nonisolated(unsafe) static let network: OSLog = {
         OSLog(subsystem: subsystem, category: "network")
     }()
 }

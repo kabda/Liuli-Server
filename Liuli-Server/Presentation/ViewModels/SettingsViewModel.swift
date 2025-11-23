@@ -15,16 +15,21 @@ public struct SettingsState: Sendable, Equatable {
     /// Validation errors
     public var portError: String?
 
+    /// Whether save succeeded (triggers window dismissal)
+    public var saveSucceeded: Bool
+
     public init(
         settings: ApplicationSettings = ApplicationSettings(),
         isSaving: Bool = false,
         errorMessage: String? = nil,
-        portError: String? = nil
+        portError: String? = nil,
+        saveSucceeded: Bool = false
     ) {
         self.settings = settings
         self.isSaving = isSaving
         self.errorMessage = errorMessage
         self.portError = portError
+        self.saveSucceeded = saveSucceeded
     }
 }
 
@@ -96,12 +101,15 @@ public final class SettingsViewModel {
 
         state.isSaving = true
         state.errorMessage = nil
+        state.saveSucceeded = false
 
         do {
             try await manageSettingsUseCase.saveSettings(state.settings)
             state.isSaving = false
+            state.saveSucceeded = true
         } catch {
             state.isSaving = false
+            state.saveSucceeded = false
             state.errorMessage = "Failed to save settings: \(error.localizedDescription)"
         }
     }

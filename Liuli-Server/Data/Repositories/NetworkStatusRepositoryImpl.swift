@@ -25,11 +25,6 @@ public actor NetworkStatusRepositoryImpl: NetworkStatusRepository {
         self.socks5Repository = socks5Repository
         self.bridgeService = bridgeService
         self.currentStatus = NetworkStatus(isListening: false)
-
-        // Start monitoring SOCKS5 connections
-        Task {
-            await self.startConnectionMonitoring()
-        }
     }
 
     public nonisolated func observeStatus() -> AsyncStream<NetworkStatus> {
@@ -96,20 +91,6 @@ public actor NetworkStatusRepositoryImpl: NetworkStatusRepository {
     private func emitCurrentState() {
         for continuation in continuations.values {
             continuation.yield(currentStatus)
-        }
-    }
-
-    /// Monitor SOCKS5 connections and update active count
-    private func startConnectionMonitoring() async {
-        let stream = await socks5Repository.observeConnections()
-        for await _ in stream {
-            // Update connection count
-            // Note: This is simplified - in production you'd track active connections
-            if currentStatus.isListening {
-                // For now, just emit current status
-                // TODO: Implement proper connection tracking
-                emitCurrentState()
-            }
         }
     }
 }

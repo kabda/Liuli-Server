@@ -47,7 +47,10 @@ public final class AppDependencyContainer {
         // to the local Charles port instead of going through the proxy again.
         config.connectionProxyDictionary = [:]
         let session = URLSession(configuration: config)
-        return CharlesProxyMonitorRepositoryImpl(urlSession: session)
+        return CharlesProxyMonitorRepositoryImpl(
+            urlSession: session,
+            settingsRepository: settingsRepository
+        )
     }()
 
     public lazy var settingsRepository: SettingsRepository = {
@@ -124,10 +127,11 @@ public final class AppDependencyContainer {
 
     // MARK: - View Models
 
-    public func makeMenuBarViewModel() -> MenuBarViewModel {
+    public func makeMenuBarViewModel(windowCoordinator: WindowCoordinator) -> MenuBarViewModel {
         MenuBarViewModel(
             toggleBridgeUseCase: toggleBridgeUseCase,
-            monitorNetworkUseCase: monitorNetworkStatusUseCase
+            monitorNetworkUseCase: monitorNetworkStatusUseCase,
+            windowCoordinator: windowCoordinator
         )
     }
 
@@ -139,7 +143,8 @@ public final class AppDependencyContainer {
 
     public func makePreferencesViewModel() -> PreferencesViewModel {
         PreferencesViewModel(
-            manageConfigurationUseCase: manageConfigurationUseCase
+            manageConfigurationUseCase: manageConfigurationUseCase,
+            notificationService: NotificationService.shared
         )
     }
 

@@ -1,6 +1,13 @@
 import Foundation
 import SwiftUI
 
+/// Protocol for window coordination actions
+public protocol WindowCoordinator: Sendable {
+    func showMainWindow()
+    func openSettings()
+    func quit()
+}
+
 /// State for menu bar view
 public struct MenuBarState: Sendable, Equatable {
     /// Whether bridge is currently enabled
@@ -42,22 +49,20 @@ public enum MenuBarAction: Sendable {
 public final class MenuBarViewModel {
     private let toggleBridgeUseCase: ToggleBridgeUseCase
     private let monitorNetworkUseCase: MonitorNetworkStatusUseCase
+    private let windowCoordinator: WindowCoordinator
 
     private(set) var state = MenuBarState()
 
     private var networkTask: Task<Void, Never>?
 
-    // TODO: Phase 7 - Inject window coordinators for app integration
-    public var onShowMainWindow: (() -> Void)?
-    public var onOpenSettings: (() -> Void)?
-    public var onQuit: (() -> Void)?
-
     public init(
         toggleBridgeUseCase: ToggleBridgeUseCase,
-        monitorNetworkUseCase: MonitorNetworkStatusUseCase
+        monitorNetworkUseCase: MonitorNetworkStatusUseCase,
+        windowCoordinator: WindowCoordinator
     ) {
         self.toggleBridgeUseCase = toggleBridgeUseCase
         self.monitorNetworkUseCase = monitorNetworkUseCase
+        self.windowCoordinator = windowCoordinator
     }
 
     public func startMonitoring() {
@@ -80,11 +85,11 @@ public final class MenuBarViewModel {
             case .toggleBridge:
                 await toggleBridge()
             case .showMainWindow:
-                onShowMainWindow?()
+                windowCoordinator.showMainWindow()
             case .openSettings:
-                onOpenSettings?()
+                windowCoordinator.openSettings()
             case .quit:
-                onQuit?()
+                windowCoordinator.quit()
             }
         }
     }

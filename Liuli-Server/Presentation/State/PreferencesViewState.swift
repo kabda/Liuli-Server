@@ -21,6 +21,5 @@ public struct PreferencesViewState: Sendable, Equatable {
 public enum PreferencesViewAction: Sendable {
     case onAppear
     case save
-    case resetToDefaults
     case close
 }

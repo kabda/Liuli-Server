@@ -20,7 +20,7 @@ public struct DeviceConnection: Identifiable, Sendable, Equatable, Codable {
     /// Cumulative bytes received by device from Charles (downstream)
     public var bytesReceived: Int64
 
-    public init(
+    public nonisolated init(
         id: UUID = UUID(),
         deviceName: String,
         connectedAt: Date? = nil,

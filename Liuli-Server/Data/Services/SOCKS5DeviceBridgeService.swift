@@ -3,9 +3,13 @@ import OSLog
 
 /// Service that bridges SOCKS5 connections to device monitoring
 /// This service listens to SOCKS5 connection events and updates the device monitor
+/// Also manages Bonjour broadcasting for LAN auto-discovery
 public actor SOCKS5DeviceBridgeService {
     private let socks5Repository: SOCKS5ServerRepository
     private let deviceMonitor: DeviceMonitorRepository
+    private let broadcastRepository: BonjourBroadcastRepositoryProtocol?
+    private let certificateGenerator: CertificateGenerator?
+    private let loggingService: LoggingServiceProtocol
     private var monitoringTask: Task<Void, Never>?
 
     // Track connections by source IP (device ID)
@@ -19,18 +23,65 @@ public actor SOCKS5DeviceBridgeService {
     // Grace period before removing device (30 seconds)
     private let removalGracePeriod: Duration = .seconds(30)
 
+    // Bridge configuration for broadcasting
+    private let deviceName: String
+    private let deviceID: UUID
+    private let proxyPort: Int
+
     public init(
         socks5Repository: SOCKS5ServerRepository,
-        deviceMonitor: DeviceMonitorRepository
+        deviceMonitor: DeviceMonitorRepository,
+        broadcastRepository: BonjourBroadcastRepositoryProtocol? = nil,
+        certificateGenerator: CertificateGenerator? = nil,
+        loggingService: LoggingServiceProtocol,
+        deviceName: String = Host.current().localizedName ?? "Liuli-Server",
+        deviceID: UUID = UUID(),
+        proxyPort: Int = 9050
     ) {
         self.socks5Repository = socks5Repository
         self.deviceMonitor = deviceMonitor
+        self.broadcastRepository = broadcastRepository
+        self.certificateGenerator = certificateGenerator
+        self.loggingService = loggingService
+        self.deviceName = deviceName
+        self.deviceID = deviceID
+        self.proxyPort = proxyPort
     }
 
     /// Start monitoring SOCKS5 connections and bridging them to device monitor
-    public func startMonitoring() {
+    /// Also starts Bonjour broadcasting if configured
+    public func startMonitoring() async throws {
         // Cancel existing task if any
         monitoringTask?.cancel()
+
+        // Start Bonjour broadcasting (if configured)
+        if let broadcastRepository = broadcastRepository,
+           let certificateGenerator = certificateGenerator {
+            await loggingService.logInfo(
+                component: "Bridge",
+                message: "Starting Bonjour broadcast"
+            )
+
+            // Generate or load certificate
+            let (_, certificateHash) = try await certificateGenerator.generateSelfSignedCertificate()
+
+            // Create broadcast configuration
+            let config = ServiceBroadcast(
+                deviceName: deviceName,
+                deviceID: deviceID,
+                port: proxyPort,
+                bridgeStatus: .active,
+                certificateHash: certificateHash
+            )
+
+            // Start broadcasting
+            try await broadcastRepository.startBroadcasting(config: config)
+
+            await loggingService.logInfo(
+                component: "Bridge",
+                message: "Bonjour broadcast started"
+            )
+        }
 
         monitoringTask = Task { [weak self] in
             guard let self = self else { return }
@@ -45,11 +96,50 @@ public actor SOCKS5DeviceBridgeService {
         Logger.bridge.info("SOCKS5-to-Device bridge service started")
     }
 
-    /// Stop monitoring
-    public func stopMonitoring() {
+    /// Stop monitoring and stop Bonjour broadcasting
+    public func stopMonitoring() async throws {
         monitoringTask?.cancel()
         monitoringTask = nil
+
+        // Stop Bonjour broadcasting (if configured)
+        if let broadcastRepository = broadcastRepository {
+            await loggingService.logInfo(
+                component: "Bridge",
+                message: "Stopping Bonjour broadcast"
+            )
+
+            try await broadcastRepository.stopBroadcasting()
+
+            await loggingService.logInfo(
+                component: "Bridge",
+                message: "Bonjour broadcast stopped"
+            )
+        }
+
         Logger.bridge.info("SOCKS5-to-Device bridge service stopped")
+    }
+
+    /// Update bridge status in TXT record (e.g., active/inactive)
+    public func updateBridgeStatus(_ status: ServiceBroadcast.BridgeStatus) async throws {
+        guard let broadcastRepository = broadcastRepository else {
+            await loggingService.logWarning(
+                component: "Bridge",
+                message: "Cannot update bridge status - broadcast not configured"
+            )
+            return
+        }
+
+        await loggingService.logInfo(
+            component: "Bridge",
+            message: "Updating bridge status to \(status.rawValue)"
+        )
+
+        try await broadcastRepository.updateBridgeStatus(status)
+
+        await loggingService.logInfo(
+            component: "Bridge",
+            message: "Bridge status updated successfully"
+        )
     }
 
     // MARK: - Private Methods

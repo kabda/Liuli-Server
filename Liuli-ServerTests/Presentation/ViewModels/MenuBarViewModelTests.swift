@@ -2,16 +2,37 @@ import XCTest
 @testable import Liuli_Server
 
 @MainActor
+final class MockWindowCoordinator: WindowCoordinator {
+    var showMainWindowCalled = false
+    var openSettingsCalled = false
+    var quitCalled = false
+
+    func showMainWindow() {
+        showMainWindowCalled = true
+    }
+
+    func openSettings() {
+        openSettingsCalled = true
+    }
+
+    func quit() {
+        quitCalled = true
+    }
+}
+
+@MainActor
 final class MenuBarViewModelTests: XCTestCase {
     var sut: MenuBarViewModel!
     var mockToggleBridgeUseCase: ToggleBridgeUseCase!
     var mockNetworkRepository: MockNetworkStatusRepository!
     var mockSettingsRepository: MockSettingsRepository!
+    var mockWindowCoordinator: MockWindowCoordinator!
 
     override func setUp() {
         super.setUp()
         mockNetworkRepository = MockNetworkStatusRepository()
         mockSettingsRepository = MockSettingsRepository()
+        mockWindowCoordinator = MockWindowCoordinator()
 
         mockToggleBridgeUseCase = ToggleBridgeUseCase(
             networkRepository: mockNetworkRepository,
@@ -22,7 +43,8 @@ final class MenuBarViewModelTests: XCTestCase {
 
         sut = MenuBarViewModel(
             toggleBridgeUseCase: mockToggleBridgeUseCase,
-            monitorNetworkUseCase: monitorNetworkUseCase
+            monitorNetworkUseCase: monitorNetworkUseCase,
+            windowCoordinator: mockWindowCoordinator
         )
     }
 
@@ -159,13 +181,7 @@ final class MenuBarViewModelTests: XCTestCase {
 
     // MARK: - Show Main Window Action Tests
 
-    func testSendShowMainWindow_callsCallback() async throws {
-        // Given
-        var callbackCalled = false
-        sut.onShowMainWindow = {
-            callbackCalled = true
-        }
-
+    func testSendShowMainWindow_callsCoordinator() async throws {
         // When
         sut.send(.showMainWindow)
 
@@ -173,27 +189,12 @@ final class MenuBarViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Then
-        XCTAssertTrue(callbackCalled)
-    }
-
-    func testSendShowMainWindow_withoutCallback_doesNotCrash() async throws {
-        // Given
-        sut.onShowMainWindow = nil
-
-        // When/Then
-        sut.send(.showMainWindow)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(mockWindowCoordinator.showMainWindowCalled)
     }
 
     // MARK: - Open Settings Action Tests
 
-    func testSendOpenSettings_callsCallback() async throws {
-        // Given
-        var callbackCalled = false
-        sut.onOpenSettings = {
-            callbackCalled = true
-        }
-
+    func testSendOpenSettings_callsCoordinator() async throws {
         // When
         sut.send(.openSettings)
 
@@ -201,27 +202,12 @@ final class MenuBarViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Then
-        XCTAssertTrue(callbackCalled)
-    }
-
-    func testSendOpenSettings_withoutCallback_doesNotCrash() async throws {
-        // Given
-        sut.onOpenSettings = nil
-
-        // When/Then
-        sut.send(.openSettings)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(mockWindowCoordinator.openSettingsCalled)
     }
 
     // MARK: - Quit Action Tests
 
-    func testSendQuit_callsCallback() async throws {
-        // Given
-        var callbackCalled = false
-        sut.onQuit = {
-            callbackCalled = true
-        }
-
+    func testSendQuit_callsCoordinator() async throws {
         // When
         sut.send(.quit)
 
@@ -229,16 +215,7 @@ final class MenuBarViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Then
-        XCTAssertTrue(callbackCalled)
-    }
-
-    func testSendQuit_withoutCallback_doesNotCrash() async throws {
-        // Given
-        sut.onQuit = nil
-
-        // When/Then
-        sut.send(.quit)
-        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(mockWindowCoordinator.quitCalled)
     }
 
     // MARK: - Integration Tests

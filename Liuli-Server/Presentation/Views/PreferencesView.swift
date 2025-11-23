@@ -146,11 +146,6 @@ public struct PreferencesView: View {
 
             // Action buttons
             HStack {
-                Button("preferences.resetDefaults".localized()) {
-                    viewModel.send(.resetToDefaults)
-                }
-                .buttonStyle(.plain)
-
                 Spacer()
 
                 Button("preferences.save".localized()) {
@@ -173,7 +168,8 @@ public struct PreferencesView: View {
         viewModel: PreferencesViewModel(
             manageConfigurationUseCase: ManageConfigurationUseCase(
                 configRepository: UserDefaultsConfigRepository()
-            )
+            ),
+            notificationService: NotificationService.shared
         )
     )
 }

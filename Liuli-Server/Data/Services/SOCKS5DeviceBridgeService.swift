@@ -124,21 +124,18 @@ public actor SOCKS5DeviceBridgeService {
 
             let totalTraffic = calculateTotalTraffic(for: sourceIP)
 
-            // Create device connection on MainActor
-            await MainActor.run {
-                let deviceConnection = DeviceConnection(
-                    id: deviceId,
-                    deviceName: extractDeviceName(from: sourceIP),
-                    connectedAt: socks5Connection.startTime,
-                    status: .active,
-                    bytesSent: totalTraffic.bytesSent,
-                    bytesReceived: totalTraffic.bytesReceived
-                )
+            // Create device connection and add to monitor
+            let deviceConnection = DeviceConnection(
+                id: deviceId,
+                deviceName: extractDeviceName(from: sourceIP),
+                connectedAt: socks5Connection.startTime,
+                status: .active,
+                bytesSent: totalTraffic.bytesSent,
+                bytesReceived: totalTraffic.bytesReceived
+            )
 
-                Task {
-                    await deviceMonitor.addConnection(deviceConnection)
-                }
-            }
+            // Add to device monitor (actor-isolated call)
+            await deviceMonitor.addConnection(deviceConnection)
 
             Logger.bridge.info("✅ New device connected: \(sourceIP), initial connections: 1")
         }

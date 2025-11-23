@@ -3,6 +3,10 @@ import NIOCore
 
 /// SwiftNIO handler to validate client IP addresses against RFC 1918 + link-local ranges
 /// Rejects connections from public IP addresses for security (FR-011)
+///
+/// Note: @unchecked Sendable is used because SwiftNIO's ChannelHandler protocol
+/// is not Sendable, but this handler is safe to use across concurrency domains
+/// because it is stateless and all operations execute within NIO's event loop context.
 nonisolated final class IPAddressValidationHandler: ChannelInboundHandler, RemovableChannelHandler, @unchecked Sendable {
     typealias InboundIn = ByteBuffer
     typealias InboundOut = ByteBuffer

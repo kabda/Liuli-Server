@@ -3,19 +3,25 @@ import Foundation
 /// Actor-based repository for Charles proxy availability checking via HTTP CONNECT probe
 public actor CharlesProxyMonitorRepositoryImpl: CharlesProxyMonitorRepository {
     private let urlSession: URLSession
+    private let settingsRepository: SettingsRepository
 
-    public init(urlSession: URLSession = .shared) {
+    public init(
+        urlSession: URLSession = .shared,
+        settingsRepository: SettingsRepository
+    ) {
         self.urlSession = urlSession
+        self.settingsRepository = settingsRepository
     }
 
     public nonisolated func observeAvailability(interval: TimeInterval) -> AsyncStream<CharlesStatus> {
         AsyncStream { continuation in
             let task = Task(priority: .medium) {
-                let host = "127.0.0.1"
-                let port: UInt16 = 8888
-
-                // TODO: Phase 7 - Load from settings
                 while !Task.isCancelled {
+                    // Load current settings for each check
+                    let settings = await self.settingsRepository.loadSettings()
+                    let host = settings.charlesProxyHost
+                    let port = settings.charlesProxyPort
+
                     let status = await checkAvailability(host: host, port: port)
                     continuation.yield(status)
 

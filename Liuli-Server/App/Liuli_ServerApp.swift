@@ -1,5 +1,32 @@
 import SwiftUI
 
+/// Implementation of WindowCoordinator protocol for app-level coordination
+@MainActor
+final class AppWindowCoordinator: WindowCoordinator {
+    private weak var dashboardCoordinator: DashboardWindowCoordinator?
+    private weak var preferencesCoordinator: PreferencesWindowCoordinator?
+
+    init(
+        dashboardCoordinator: DashboardWindowCoordinator,
+        preferencesCoordinator: PreferencesWindowCoordinator
+    ) {
+        self.dashboardCoordinator = dashboardCoordinator
+        self.preferencesCoordinator = preferencesCoordinator
+    }
+
+    func showMainWindow() {
+        dashboardCoordinator?.showWindow()
+    }
+
+    func openSettings() {
+        preferencesCoordinator?.show()
+    }
+
+    func quit() {
+        NSApplication.shared.terminate(nil)
+    }
+}
+
 @main
 struct Liuli_ServerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -37,27 +64,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statisticsCoordinator = container.makeStatisticsWindowCoordinator()
         let preferencesCoordinator = container.makePreferencesWindowCoordinator()
 
-        // Create and setup menu bar coordinator
-        let viewModel = container.makeMenuBarViewModel()
+        // Store coordinators
+        self.dashboardWindowCoordinator = dashboardCoordinator
+        self.statisticsWindowCoordinator = statisticsCoordinator
+        self.preferencesWindowCoordinator = preferencesCoordinator
 
-        // TODO: Phase 7 - Wire up window coordinator callbacks
-        viewModel.onShowMainWindow = { [weak dashboardCoordinator] in
-            dashboardCoordinator?.showWindow()
-        }
-        viewModel.onOpenSettings = { [weak preferencesCoordinator] in
-            preferencesCoordinator?.show()
-        }
-        viewModel.onQuit = {
-            NSApplication.shared.terminate(nil)
-        }
+        // Create window coordinator implementation
+        let windowCoordinator = AppWindowCoordinator(
+            dashboardCoordinator: dashboardCoordinator,
+            preferencesCoordinator: preferencesCoordinator
+        )
 
+        // Create and setup menu bar with proper DI
+        let viewModel = container.makeMenuBarViewModel(windowCoordinator: windowCoordinator)
         let coordinator = MenuBarCoordinator(viewModel: viewModel)
         coordinator.setup()
 
         self.menuBarCoordinator = coordinator
-        self.dashboardWindowCoordinator = dashboardCoordinator
-        self.statisticsWindowCoordinator = statisticsCoordinator
-        self.preferencesWindowCoordinator = preferencesCoordinator
 
         // Auto-start bridge on app launch
         Task {

@@ -4,6 +4,11 @@ import NIOPosix
 
 /// SwiftNIO channel handler for SOCKS5 protocol (RFC 1928)
 /// Handles authentication handshake and CONNECT command
+///
+/// Note: @unchecked Sendable is used because SwiftNIO's ChannelHandler protocol
+/// is not Sendable, but this handler is safe to use across concurrency domains
+/// because all state mutations happen within the single-threaded NIO event loop
+/// context, and callbacks are marked @Sendable.
 nonisolated final class SOCKS5Handler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = ByteBuffer
     typealias InboundOut = ByteBuffer

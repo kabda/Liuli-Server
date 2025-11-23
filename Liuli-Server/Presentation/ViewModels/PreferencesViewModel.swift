@@ -8,10 +8,14 @@ public final class PreferencesViewModel {
     public var state: PreferencesViewState
 
     private let manageConfigurationUseCase: ManageConfigurationUseCase
-    private var originalConfiguration: ProxyConfiguration?
+    private let notificationService: NotificationService
 
-    public init(manageConfigurationUseCase: ManageConfigurationUseCase) {
+    public init(
+        manageConfigurationUseCase: ManageConfigurationUseCase,
+        notificationService: NotificationService
+    ) {
         self.manageConfigurationUseCase = manageConfigurationUseCase
+        self.notificationService = notificationService
         self.state = PreferencesViewState()
     }
 
@@ -23,8 +27,6 @@ public final class PreferencesViewModel {
                 await loadConfiguration()
             case .save:
                 await saveConfiguration()
-            case .resetToDefaults:
-                resetToDefaults()
             case .close:
                 // Window will be closed by coordinator
                 break
@@ -35,7 +37,6 @@ public final class PreferencesViewModel {
     private func loadConfiguration() async {
         do {
             let config = try await manageConfigurationUseCase.loadConfiguration()
-            originalConfiguration = config
             state = PreferencesViewState(configuration: config)
         } catch {
             Logger.ui.error("Failed to load configuration: \(error.localizedDescription)")
@@ -64,7 +65,7 @@ public final class PreferencesViewModel {
             try await manageConfigurationUseCase.saveConfiguration(state.configuration)
 
             // Show success notification
-            showNotification(
+            try await notificationService.show(
                 title: "preferences.savedSuccessfully".localized(),
                 body: ""
             )
@@ -78,16 +79,5 @@ public final class PreferencesViewModel {
                 validationError: error.localizedDescription
             )
         }
-    }
-
-    private func resetToDefaults() {
-        state = PreferencesViewState(
-            configuration: ProxyConfiguration.default
-        )
-    }
-
-    private func showNotification(title: String, body: String) {
-        // TODO: Implement using UserNotifications framework
-        Logger.ui.info("Notification: \(title)")
     }
 }

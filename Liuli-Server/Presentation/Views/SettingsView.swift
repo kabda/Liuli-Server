@@ -77,13 +77,17 @@ public struct SettingsView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     viewModel.send(.save)
-                    // TODO: Add callback to dismiss on success
                 }
                 .disabled(!viewModel.canSave)
             }
         }
         .onAppear {
             viewModel.send(.load)
+        }
+        .onChange(of: viewModel.state.saveSucceeded) { _, succeeded in
+            if succeeded {
+                dismiss()
+            }
         }
     }
 }

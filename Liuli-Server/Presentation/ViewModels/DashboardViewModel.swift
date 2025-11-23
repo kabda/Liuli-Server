@@ -21,6 +21,9 @@ public struct DashboardState: Sendable, Equatable {
     /// Selected device ID (for detail view, future feature)
     public var selectedDeviceId: UUID?
 
+    /// Error message if monitoring fails
+    public var errorMessage: String?
+
     public init(
         devices: [DeviceConnection] = [],
         networkStatus: NetworkStatus = NetworkStatus(isListening: false),
@@ -31,7 +34,8 @@ public struct DashboardState: Sendable, Equatable {
         ),
         isLoading: Bool = false,
         isRefreshing: Bool = false,
-        selectedDeviceId: UUID? = nil
+        selectedDeviceId: UUID? = nil,
+        errorMessage: String? = nil
     ) {
         self.devices = devices
         self.networkStatus = networkStatus
@@ -39,6 +43,7 @@ public struct DashboardState: Sendable, Equatable {
         self.isLoading = isLoading
         self.isRefreshing = isRefreshing
         self.selectedDeviceId = selectedDeviceId
+        self.errorMessage = errorMessage
     }
 }
 
@@ -67,24 +72,56 @@ public final class DashboardViewModel {
     }
 
     public func startMonitoring() {
-        // Monitor devices
-        devicesTask = Task {
-            for await devices in monitorDevicesUseCase.execute() {
-                state.devices = devices
+        state.errorMessage = nil
+
+        // Monitor devices with error handling
+        devicesTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                for await devices in self.monitorDevicesUseCase.execute() {
+                    await MainActor.run {
+                        self.state.devices = devices
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.state.errorMessage = "Device monitoring error: \(error.localizedDescription)"
+                    Logger.ui.error("Device monitoring failed: \(error)")
+                }
             }
         }
 
-        // Monitor network status
-        networkTask = Task {
-            for await status in monitorNetworkUseCase.execute() {
-                state.networkStatus = status
+        // Monitor network status with error handling
+        networkTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                for await status in self.monitorNetworkUseCase.execute() {
+                    await MainActor.run {
+                        self.state.networkStatus = status
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.state.errorMessage = "Network monitoring error: \(error.localizedDescription)"
+                    Logger.ui.error("Network monitoring failed: \(error)")
+                }
             }
         }
 
-        // Monitor Charles availability
-        charlesTask = Task {
-            for await status in checkCharlesUseCase.execute() {
-                state.charlesStatus = status
+        // Monitor Charles availability with error handling
+        charlesTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                for await status in self.checkCharlesUseCase.execute() {
+                    await MainActor.run {
+                        self.state.charlesStatus = status
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.state.errorMessage = "Charles monitoring error: \(error.localizedDescription)"
+                    Logger.ui.error("Charles monitoring failed: \(error)")
+                }
             }
         }
     }
